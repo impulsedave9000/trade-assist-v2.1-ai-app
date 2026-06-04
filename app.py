@@ -22,11 +22,11 @@ if "chat_history" not in st.session_state:
 master_left, master_right = st.columns([2, 3])
 
 # ====================================================
-# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2 - FIXING VARIABLE ORDER)
+# 🎛️ LEFT MASTER COLUMN (CHANNELS PUSHED TO TOP)
 # ====================================================
 with master_left:
     
-    # 🔑 PANE 1: AUTHENTICATION (Defined first so Python sees it, but hidden inside a collapsed expander)
+    # 🔑 PANE 1: AUTHENTICATION (Defined first so Python sees it, hidden inside a collapsed expander)
     with st.expander("🔑 Authentication", expanded=False):
         api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
         if api_key:
@@ -108,16 +108,8 @@ with master_left:
                 except Exception as e:
                     st.error(f"Engine Error: {e}")
 
-    st.markdown("---")
-
-    # 🔑 PANE 3: AUTHENTICATION (Moved to the bottom since it's "set-and-forget")
-    with st.expander("🔑 Authentication", expanded=False):  # Set expanded=False to keep it collapsed and clean
-        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
-        if api_key:
-            st.session_state["api_key"] = api_key
-
 # ====================================================
-# 📜 RIGHT MASTER COLUMN (PANE 3: THE REPORT STREAM)
+# 📜 RIGHT MASTER COLUMN (PANE 4: THE REPORT STREAM)
 # ====================================================
 with master_right:
     st.markdown("### 📋 Historical Report Timeline")
@@ -131,9 +123,8 @@ with master_right:
     stream_container = st.container(height=750)
     with stream_container:
         if not st.session_state["report_stream"]:
-            st.info("No reports generated yet. Use the Control Panel on the left to trigger your quantitative engine.")
+            st.info("No reports generated yet. Use the Strategy Console on the left to trigger your quantitative engine.")
         else:
             # Display reports in reverse chronological order (newest at the top)
-            # Switch to `for report in st.session_state["report_stream"]:` if you want oldest first!
             for report in reversed(st.session_state["report_stream"]):
                 st.markdown(report)
