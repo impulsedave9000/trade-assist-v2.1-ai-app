@@ -113,12 +113,12 @@ class ReportEngine:
         timestamp = datetime.utcnow().strftime("%Y-%m-%d | %H:%M:%S")
 
         report = f"""**ASSIST TRADER V2.1**\n\n
-**{self.data["pair"]} ({self.data["pair"]})**\n\n
+**{self.data["pair"]} ({self.data["pair"]})**
 **TIMESTAMP:** {timestamp} (UTC+8)\n\n
 \n\n
 **PRICE SOURCE:** {self.spot}
-**YOUR BIAS: {self.data["user_bias"]}**
-          **FLOW STATE:** [LLM_INSERT_FLOW_STATE]\n\n
+**YOUR BIAS: {self.data["user_bias"]}**\n\n
+**FLOW STATE:** [LLM_INSERT_FLOW_STATE]\
 **CONVICTION MATRIX:** 🟢 {m["blend_bull"]}% | ⚪ {m["blend_neutral"]}% | 🔴 {m["blend_bear"]}%\n\n
 **CONFLUENCED BIAS:** {m["final_bias"]} {m["final_emoji"]} {m["final_score"]}%
 
@@ -128,13 +128,12 @@ class ReportEngine:
 
 **VOLUME DELTA (H1):**
 {self.data["flow_data"]["volume_sell_pct"]}% {vol_bar} {self.data["flow_data"]["volume_buy_pct"]}%
-SELL ㅤㅤ [NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%] ㅤ BUY
+SELL ㅤㅤ [NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%] ㅤ     BUY
 
 **LIQUIDITY FLOW (H1):**
 {self.data["flow_data"]["liquidity_absorb_pct"]}% {liq_bar} {self.data["flow_data"]["liquidity_distribute_pct"]}%
-ABSORB  [NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%] ㅤ DISTRIBUTE
-(BULL)                                            (BEAR)
-
+ABSORB      [NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%] ㅤ     DISTRIBUTE
+                                            
 **▸ FLOW INTERPRETATION:**
 - **Delta Signal:** [LLM_INSERT_DELTA_SIGNAL]
 - **Liquidity Signal:** [LLM_INSERT_LIQUIDITY_SIGNAL]
@@ -147,21 +146,21 @@ ABSORB  [NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%] �
 **PRIMARY DRIVER: {self.data["macro_data"]["primary_driver"]["name"]}**
 
 > [LLM_INSERT_FACTOR_1_STRUCTURAL]
-> ✅ [IMPACT]: [LLM_INSERT_IMPACT_1]
+> ✅ **[IMPACT]: [LLM_INSERT_IMPACT_1]**
 >
-> *[LLM_INSERT_COMMENTARY_1]*
+> * **Remark:** [LLM_INSERT_COMMENTARY_1]*
 
 **SECONDARY DRIVER: {self.data["macro_data"]["secondary_driver"]["name"]}**
 
 > [LLM_INSERT_FACTOR_2_STRUCTURAL]
-> ✅ [IMPACT]: [LLM_INSERT_IMPACT_2]
+> ✅ **[IMPACT]: [LLM_INSERT_IMPACT_2]**
 >
-> *[LLM_INSERT_COMMENTARY_2]*
+> * **Remark:** [LLM_INSERT_COMMENTARY_2]*
 
 **▸ LAYER SYNTHESIS:**
 > [LLM_INSERT_SYNTHESIS_SUMMARY]
 >
-> *[LLM_INSERT_SYNTHESIS_MENTOR_COMMENTARY]*
+> * **Remark:** [LLM_INSERT_SYNTHESIS_MENTOR_COMMENTARY]*
 
 ---
 
