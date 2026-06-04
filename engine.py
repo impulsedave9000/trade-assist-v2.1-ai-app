@@ -112,14 +112,13 @@ class ReportEngine:
 
         timestamp = datetime.utcnow().strftime("%Y-%m-%d | %H:%M:%S")
 
-        report = f"""**ASSIST TRADER V2.1**\n\n
+        report = f"""**ASSIST TRADER V2.1**
 **{self.data["pair"]} ({self.data["pair"]})**
-**TIMESTAMP:** {timestamp} (UTC+8)\n\n
-\n\n
+**TIMESTAMP:** {timestamp} (UTC+8)
 **PRICE SOURCE:** {self.spot}
-**YOUR BIAS: {self.data["user_bias"]}**\n\n
-**FLOW STATE:** [LLM_INSERT_FLOW_STATE]\
-**CONVICTION MATRIX:** 🟢 {m["blend_bull"]}% | ⚪ {m["blend_neutral"]}% | 🔴 {m["blend_bear"]}%\n\n
+**YOUR BIAS: {self.data["user_bias"]}**
+**FLOW STATE:** [LLM_INSERT_FLOW_STATE]
+**CONVICTION MATRIX:** 🟢 {m["blend_bull"]}% | ⚪ {m["blend_neutral"]}% | 🔴 {m["blend_bear"]}%
 **CONFLUENCED BIAS:** {m["final_bias"]} {m["final_emoji"]} {m["final_score"]}%
 
 ---
