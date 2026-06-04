@@ -1,16 +1,9 @@
 import streamlit as st
 import datetime
-
 import sys
 import importlib
-
 from google import genai
 from google.genai import types
-from engine import ReportEngine
-
-
-
-
 
 # 1. Force the app into ultra-wide mode to support 3 columns comfortably
 st.set_page_config(page_title="FX Quant Command Center", layout="wide")
@@ -26,7 +19,6 @@ if "chat_history" not in st.session_state:
 # ----------------------------------------------------
 # 🖥️ 3-PANE LAYOUT CONFIGURATION
 # ----------------------------------------------------
-# Creates two main master columns: Left Controls/Chat (40% width) and Right Report Stream (60% width)
 master_left, master_right = st.columns([2, 3])
 
 # ====================================================
@@ -40,11 +32,9 @@ with master_left:
         if api_key:
             st.session_state["api_key"] = api_key
             
-        # 🎚️ The AI Studio Thinking Slider
-        # 0 means normal fast mode, steps up by 1024 tokens up to 8192
         thinking_budget = st.slider("🧠 Mentor Thinking Budget", min_value=0, max_value=8192, value=0, step=1024)
-        
-        # 🛠️ NEW: MANUAL ENGINE MAINTENANCE (Placed perfectly right under config)
+
+    # 🛠️ ENGINE MAINTENANCE PANEL
     st.markdown("### 🛠️ Engine Maintenance")
     if st.button("🔄 Force Hard Code & Cache Reset", use_container_width=True):
         st.cache_data.clear()
@@ -52,13 +42,12 @@ with master_left:
         if 'engine' in sys.modules:
             del sys.modules['engine']
         st.session_state["report_stream"] = []  # Wipes out stale UI reports hanging out in memory
-        st.success("Cache obliterated & timeline cleared! Ready for fresh data feed...")
+        st.success("Cache obliterated & timeline cleared!")
         st.rerun()
 
-    # 👑 PANE 2: MENTOR CHAT (Right at the top of your visual workflow)
+    # 👑 PANE 2: MENTOR CHAT
     st.markdown("### 💬 Mentor Chat")
     
-    # Creates a fixed-height scrollable window specifically for the chat
     chat_container = st.container(height=350)
     with chat_container:
         if not st.session_state["chat_history"]:
@@ -75,14 +64,12 @@ with master_left:
             latest_report = st.session_state["report_stream"][-1]
             client = genai.Client(api_key=api_key)
             
-            # 🛠️ Dynamically build config based on your slider
             if thinking_budget > 0:
                 config_args = types.GenerateContentConfig(
                     system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured.",
                     thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
                 )
             else:
-                # Standard fast execution mode
                 config_args = types.GenerateContentConfig(
                     system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured."
                 )
@@ -108,10 +95,8 @@ with master_left:
     else:
         pair = selected_option.strip().upper()
     
-    # Locate this section under '### ⚙️ Strategy Console' in your app.py
     user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
     
-    # NEW: Mode select toggle dropdown to choose between architecture lenses
     report_mode = st.selectbox("Select Report Execution Engine", ["Assist Trader v1.xx (ta)", "Assist Trader v2.xx (ta2)"])
     mode_tag = "TA" if "v1.xx" in report_mode else "TA2"
     
@@ -123,22 +108,24 @@ with master_left:
         else:
             with st.spinner("Processing engine state..."):
                 try:
-                   
-                    from engine import ReportEngine
-                    
-                    # 🔍 DIAGNOSTIC CHECK: Read the raw data file directly from disk
+                    # 🔍 DIAGNOSTIC CHECK: Read raw data file directly from disk
                     with open("market_state.json", "r") as f:
-                    raw_json_data = f.read()
+                        raw_json_data = f.read()
                     st.sidebar.warning("📦 Raw JSON File Content Data:")
                     st.sidebar.code(raw_json_data, language="json")
-                    # Instantiate Engine passing the dynamic inputs directly from the Streamlit UI frame
+                   
+                    # Force Python to drop cached module tracking
+                    if 'engine' in sys.modules:
+                        del sys.modules['engine']
+                    import engine
+                    importlib.reload(engine)
+                    from engine import ReportEngine
+                    
                     engine_instance = ReportEngine("market_state.json", live_pair=pair, live_bias=user_bias)
                     skeleton = engine_instance.generate_report_skeleton(report_mode=mode_tag)
                     
                     client = genai.Client(api_key=api_key)				
                     
-                    # 🛡️ THE DEFINITIVE ANTI-ASSUMPTION GUARDRAIL SYSTEM
-                    # Replace your old system_instruction string block with this exact configuration
                     system_instruction = """
                     You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor operating with a 16-year market perspective (trading since 2008). Your single remaining duty is to populate the string-bracketed placeholders (e.g., [LLM_INSERT_X]) embedded inside the provided skeleton file.
                     
@@ -178,17 +165,14 @@ with master_left:
 with master_right:
     st.markdown("### 📋 Historical Report Timeline")
     
-    # Clear Stream Button if you want to wipe the slate clean
     if st.button("🗑️ Clear Timeline"):
         st.session_state["report_stream"] = []
         st.rerun()
 
-    # Creates a dedicated, tall, independently scrollable viewport for the reports
     stream_container = st.container(height=750)
     with stream_container:
         if not st.session_state["report_stream"]:
             st.info("No reports generated yet. Use the Strategy Console on the left to trigger your quantitative engine.")
         else:
-            # Display reports in reverse chronological order (newest at the top)
             for report in reversed(st.session_state["report_stream"]):
                 st.markdown(report)
