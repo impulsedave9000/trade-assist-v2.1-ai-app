@@ -26,11 +26,15 @@ master_left, master_right = st.columns([2, 3])
 # ====================================================
 with master_left:
     
-    # 🔑 PANE 1: AUTHENTICATION (Defined first so Python sees it, hidden inside a collapsed expander)
-    with st.expander("🔑 Authentication", expanded=False):
+    # 🔑 PANE 1: AUTHENTICATION & CONFIG
+    with st.expander("🔑 Authentication & Engine Config", expanded=False):
         api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
         if api_key:
             st.session_state["api_key"] = api_key
+            
+        # 🎚️ The AI Studio Thinking Slider
+        # 0 means normal fast mode, steps up by 1024 tokens up to 8192
+        thinking_budget = st.slider("🧠 Mentor Thinking Budget", min_value=0, max_value=8192, value=0, step=1024)
 
     # 👑 PANE 2: MENTOR CHAT (Right at the top of your visual workflow)
     st.markdown("### 💬 Mentor Chat")
@@ -49,20 +53,29 @@ with master_left:
         st.session_state["chat_history"].append({"role": "user", "text": user_query})
         
         if st.session_state["report_stream"]:
-            # Give the mentor context of the most recent report generated
             latest_report = st.session_state["report_stream"][-1]
             client = genai.Client(api_key=api_key)
-            chat = client.chats.create(
-                model="gemini-2.5-flash",
-                config=types.GenerateContentConfig(
+            
+            # 🛠️ Dynamically build config based on your slider
+            if thinking_budget > 0:
+                config_args = types.GenerateContentConfig(
+                    system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured.",
+                    thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
+                )
+            else:
+                # Standard fast execution mode
+                config_args = types.GenerateContentConfig(
                     system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured."
                 )
+
+            chat = client.chats.create(
+                model="gemini-2.0-flash", 
+                config=config_args
             )
+            
             chat.send_message(f"Context report:\n{latest_report}")
             res = chat.send_message(user_query)
-            st.session_state["chat_history"].append({"role": "assistant", "text": res.text})
-        else:
-            st.session_state["chat_history"].append({"role": "assistant", "text": "Please generate a market report first so I have data to analyze with you."})
+            st.session_state["chat_history"].append({"role": "mentor", "text": res.text})
         st.rerun()
 
     st.markdown("---")
