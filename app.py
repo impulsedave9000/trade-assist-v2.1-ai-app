@@ -1,141 +1,131 @@
 import streamlit as st
-import json
+import datetime
 from google import genai
 from google.genai import types
 from engine import ReportEngine
 
-st.set_page_config(page_title="FX Report Engine", layout="wide")
+# 1. Force the app into ultra-wide mode to support 3 columns comfortably
+st.set_page_config(page_title="FX Quant Command Center", layout="wide")
 
 st.title("📈 Forex Quantitative Engine (v2.1)")
 
-# Sidebar for Setup & API Key
-st.sidebar.header("🔑 Authentication")
-api_key = st.sidebar.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
-if api_key:
-    st.session_state["api_key"] = api_key
+# Initialize session states so data persists across refreshes
+if "report_stream" not in st.session_state:
+    st.session_state["report_stream"] = []  # Keeps a rolling history of all generated reports
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []   # Keeps mentor conversation separate
 
-# 1. Inputs (Replaces manual JSON editing)
-st.subheader("📊 Live Market Inputs")
-col1, col2 = st.columns(2)
+# ----------------------------------------------------
+# 🖥️ 3-PANE LAYOUT CONFIGURATION
+# ----------------------------------------------------
+# Creates two main master columns: Left Controls/Chat (40% width) and Right Report Stream (60% width)
+master_left, master_right = st.columns([2, 3])
 
-with col1:
-    pair = st.text_input("Currency Pair", "AUDUSD")
-    spot_price = st.number_input("Current Spot Price", value=0.65420, format="%.5f")
-    user_bias = st.selectbox("Your Bias", ["BULLISH", "BEARISH", "NEUTRAL"])
-
-with col2:
-    vol_buy = st.slider("Volume Buy %", 0, 100, 65)
-    vol_sell = 100 - vol_buy
-    st.caption(f"Volume Sell: {vol_sell}%")
+# ====================================================
+# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2)
+# ====================================================
+with master_left:
     
-    liq_absorb = st.slider("Liquidity Absorb %", 0, 100, 30)
-    liq_dist = 100 - liq_absorb
-    st.caption(f"Liquidity Distribute: {liq_dist}%")
+    # 📌 PANE 1: STATIC CONTROL PANEL (Top Left)
+    st.markdown("### 📊 Control Panel")
+    with st.expander("🔑 Authentication", expanded=True):
+        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
+        if api_key:
+            st.session_state["api_key"] = api_key
 
-# Create temporary JSON state
-state = {
-    "pair": pair,
-    "spot_price": spot_price,
-    "user_bias": user_bias,
-    "model_type": "ta2",
-    "flow_data": {
-        "volume_buy_pct": vol_buy,
-        "volume_sell_pct": vol_sell,
-        "liquidity_absorb_pct": liq_absorb,
-        "liquidity_distribute_pct": liq_dist
-    },
-    "macro_data": {
-        "primary_driver": {
-            "name": st.text_input("Primary Driver", "RBA Hawkish Hold"),
-            "bullish_pct": st.slider("Primary Bullish %", 0, 100, 80),
-            "bearish_pct": 0 # Handled programmatically
-        },
-        "secondary_driver": {
-            "name": st.text_input("Secondary Driver", "DXY Profit Taking"),
-            "bullish_pct": st.slider("Secondary Bullish %", 0, 100, 60),
-            "bearish_pct": 0
-        }
-    },
-    "price_levels": {
-        "supply": [
-            {"price": spot_price + 0.0050, "timeframe": "H1", "label": "Unmitigated OB", "probability": "HIGH", "icon": "🔥"},
-            {"price": spot_price + 0.0025, "timeframe": "D1", "label": "Daily Range High", "probability": "MED", "icon": "💧"}
-        ],
-        "demand": [
-            {"price": spot_price - 0.0025, "timeframe": "H1", "label": "Resting Bid Wall", "probability": "HIGH", "icon": "🔥"},
-            {"price": spot_price - 0.0050, "timeframe": "W1", "label": "Weekly Key Support", "probability": "LOW", "icon": "❄"}
-        ]
-    }
-}
-
-# Math adjustments for JSON format
-state["macro_data"]["primary_driver"]["bearish_pct"] = 100 - state["macro_data"]["primary_driver"]["bullish_pct"]
-state["macro_data"]["secondary_driver"]["bearish_pct"] = 100 - state["macro_data"]["secondary_driver"]["bullish_pct"]
-
-# Save temporary state file
-with open("temp_state.json", "w") as f:
-    json.dump(state, f)
-
-if st.button("⚡ Generate Report"):
-    if not api_key:
-        st.error("Please enter your Gemini API Key in the sidebar.")
-    else:
-        with st.spinner("Processing local math and querying Gemini..."):
-            engine = ReportEngine("temp_state.json")
-            skeleton = engine.generate_report_skeleton()
-            
-            client = genai.Client(api_key=api_key)
-            
-            system_instruction = """
-            You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
-            Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
-            """
-            
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=f"Populate this skeleton:\n\n{skeleton}",
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.2
-                )
-            )
-            
-            st.session_state["report"] = response.text
-
-# 2. Display Report & Chat
-if "report" in st.session_state:
-    st.markdown("### 📋 Generated Report")
-    st.markdown(st.session_state["report"])
+    pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
+    user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
     
+    generate_btn = st.button("⚡ Generate & Append Report", use_container_width=True)
+
+    if generate_btn:
+        if not api_key:
+            st.error("Please enter your Gemini API Key above.")
+        else:
+            with st.spinner("Processing engine state..."):
+                try:
+                    engine = ReportEngine("market_state.json")
+                    skeleton = engine.generate_report_skeleton(pair=pair, bias=user_bias)
+                    
+                    client = genai.Client(api_key=api_key)
+                    system_instruction = """
+                    You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
+                    Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
+                    """
+                    
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"Populate this skeleton:\n\n{skeleton}",
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.2
+                        )
+                    )
+                    
+                    # 💡 Key adjustment: Append to our rolling stream timeline with a timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{response.text}\n\n---"
+                    
+                    st.session_state["report_stream"].append(new_report_block)
+                    st.success(f"Appended {pair} Report to Stream!")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Engine Error: {e}")
+
     st.markdown("---")
-    st.subheader("💬 Discuss Setup with Mentor")
+
+    # 💬 PANE 2: INDEPENDENT CHAT WINDOW (Bottom Left)
+    st.markdown("### 💬 Mentor Chat")
     
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
-        
-    for msg in st.session_state["chat_history"]:
-        with st.chat_message(msg["role"]):
-            st.write(msg["text"])
-            
+    # Creates a fixed-height scrollable window specifically for the chat
+    chat_container = st.container(height=400)
+    with chat_container:
+        if not st.session_state["chat_history"]:
+            st.info("Ask a question below to start discussing your current setup.")
+        for msg in st.session_state["chat_history"]:
+            with st.chat_message(msg["role"]):
+                st.write(msg["text"])
+                
     user_query = st.chat_input("Ask a question about this setup...")
     if user_query:
         st.session_state["chat_history"].append({"role": "user", "text": user_query})
-        with st.chat_message("user"):
-            st.write(user_query)
-            
-        # Call API for discussion
-        client = genai.Client(api_key=api_key)
-        chat = client.chats.create(
-            model="gemini-2.5-flash",
-            config=types.GenerateContentConfig(
-                system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured."
+        
+        if st.session_state["report_stream"]:
+            # Give the mentor context of the most recent report generated
+            latest_report = st.session_state["report_stream"][-1]
+            client = genai.Client(api_key=api_key)
+            chat = client.chats.create(
+                model="gemini-2.5-flash",
+                config=types.GenerateContentConfig(
+                    system_instruction="Discuss the report objectively. Keep answers brief, direct, and structured."
+                )
             )
-        )
-        chat.send_message(f"Context report:\n{st.session_state['report']}")
-        
-        # Pull history if needed or just send the current query
-        res = chat.send_message(user_query)
-        
-        st.session_state["chat_history"].append({"role": "assistant", "text": res.text})
-        with st.chat_message("assistant"):
-            st.write(res.text)
+            chat.send_message(f"Context report:\n{latest_report}")
+            res = chat.send_message(user_query)
+            st.session_state["chat_history"].append({"role": "assistant", "text": res.text})
+        else:
+            st.session_state["chat_history"].append({"role": "assistant", "text": "Please generate a market report first so I have data to analyze with you."})
+        st.rerun()
+
+# ====================================================
+# 📜 RIGHT MASTER COLUMN (PANE 3: THE REPORT STREAM)
+# ====================================================
+with master_right:
+    st.markdown("### 📋 Historical Report Timeline")
+    
+    # Clear Stream Button if you want to wipe the slate clean
+    if st.button("🗑️ Clear Timeline"):
+        st.session_state["report_stream"] = []
+        st.rerun()
+
+    # Creates a dedicated, tall, independently scrollable viewport for the reports
+    stream_container = st.container(height=750)
+    with stream_container:
+        if not st.session_state["report_stream"]:
+            st.info("No reports generated yet. Use the Control Panel on the left to trigger your quantitative engine.")
+        else:
+            # Display reports in reverse chronological order (newest at the top)
+            # Switch to `for report in st.session_state["report_stream"]:` if you want oldest first!
+            for report in reversed(st.session_state["report_stream"]):
+                st.markdown(report)
