@@ -22,11 +22,17 @@ if "chat_history" not in st.session_state:
 master_left, master_right = st.columns([2, 3])
 
 # ====================================================
-# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2 - REARRANGED)
+# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2 - FIXING VARIABLE ORDER)
 # ====================================================
 with master_left:
     
-    # 👑 PANE 1: MENTOR CHAT (Now at the top for maximum productivity)
+    # 🔑 PANE 1: AUTHENTICATION (Defined first so Python sees it, but hidden inside a collapsed expander)
+    with st.expander("🔑 Authentication", expanded=False):
+        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
+        if api_key:
+            st.session_state["api_key"] = api_key
+
+    # 👑 PANE 2: MENTOR CHAT (Right at the top of your visual workflow)
     st.markdown("### 💬 Mentor Chat")
     
     # Creates a fixed-height scrollable window specifically for the chat
@@ -61,7 +67,7 @@ with master_left:
 
     st.markdown("---")
 
-    # 📊 PANE 2: LIVE MARKET INPUTS & ACTION BUTTON
+    # 📊 PANE 3: LIVE MARKET INPUTS & ACTION BUTTON
     st.markdown("### ⚙️ Strategy Console")
     pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
     user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
@@ -70,7 +76,7 @@ with master_left:
 
     if generate_btn:
         if not api_key:
-            st.error("Please enter your Gemini API Key at the bottom of the console.")
+            st.error("Please expand '🔑 Authentication' at the top and enter your Gemini API Key.")
         else:
             with st.spinner("Processing engine state..."):
                 try:
