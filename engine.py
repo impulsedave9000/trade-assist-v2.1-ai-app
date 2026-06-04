@@ -87,26 +87,84 @@ class ReportEngine:
             "final_bias": final_bias, "final_emoji": final_emoji, "final_score": final_score
         }
 
-    def run_ta2_math(self):
-        fd = self.data.get("flow_data", {})
-        md = self.data.get("macro_data", {})
+    def run_ta_math(self):
+        md = self.data.get("macro_data", {}) if self.data.get("macro_data") else {}
+        econ = md.get("primary_driver", {}) if md.get("primary_driver") else {}
+        sent = md.get("secondary_driver", {}) if md.get("secondary_driver") else {}
 
-        flow_bull = (fd.get("volume_buy_pct", 50.0) + fd.get("liquidity_absorb_pct", 50.0)) / 2.0
-        flow_bear = (fd.get("volume_sell_pct", 50.0) + fd.get("liquidity_distribute_pct", 50.0)) / 2.0
+        # Hardened Float Extraction Safety Gates
+        econ_bull = float(econ.get("bullish_pct") or 0.0)
+        econ_bear = float(econ.get("bearish_pct") or 0.0)
+        econ_neut = max(0.0, 100.0 - econ_bull - econ_bear)
+        
+        sent_bull = float(sent.get("bullish_pct") or 0.0)
+        sent_bear = float(sent.get("bearish_pct") or 0.0)
+        sent_neut = max(0.0, 100.0 - sent_bull - sent_bear)
+        
+        macro_bull = (econ_bull * 0.60) + (sent_bull * 0.40)
+        macro_bear = (econ_bear * 0.60) + (sent_bear * 0.40)
+        macro_neut = (econ_neut * 0.60) + (sent_neut * 0.40)
+        
+        user_bull = 100.0 if self.user_bias.upper() == "BULLISH" else 0.0
+        user_bear = 100.0 if self.user_bias.upper() == "BEARISH" else 0.0
+        user_neut = 100.0 if self.user_bias.upper() == "NEUTRAL" else 0.0
+        
+        blend_bull = (macro_bull * 0.85) + (user_bull * 0.15)
+        blend_bear = (macro_bear * 0.85) + (user_bear * 0.15)
+        blend_neut = (macro_neut * 0.85) + (user_neut * 0.15)
+        
+        rbull = int(round(blend_bull))
+        rbear = int(round(blend_bear))
+        rneut = int(round(blend_neut))
+        
+        diff = 100 - (rbull + rbear + rneut)
+        rneut += diff
+        
+        if max(rbull, rbear) <= rneut:
+            final_bias = "Neutral / Range-bound"
+            final_emoji = "⚪"
+            final_score = rneut
+        elif rbull > rbear:
+            final_bias = "Bullish"
+            final_emoji = "🟢"
+            final_score = rbull
+        else:
+            final_bias = "Bearish"
+            final_emoji = "🔴"
+            final_score = rbear
+            
+        return {
+            "bullish": rbull, "neutral": rneut, "bearish": rbear,
+            "final_bias": final_bias, "final_emoji": final_emoji, "final_score": final_score
+        }
+
+    def run_ta2_math(self):
+        fd = self.data.get("flow_data", {}) if self.data.get("flow_data") else {}
+        md = self.data.get("macro_data", {}) if self.data.get("macro_data") else {}
+
+        # Hardened Float Extraction Safety Gates
+        vol_buy = float(fd.get("volume_buy_pct") or 50.0)
+        vol_sell = float(fd.get("volume_sell_pct") or 50.0)
+        liq_abs = float(fd.get("liquidity_absorb_pct") or 50.0)
+        liq_dist = float(fd.get("liquidity_distribute_pct") or 50.0)
+
+        flow_bull = (vol_buy + liq_abs) / 2.0
+        flow_bear = (vol_sell + liq_dist) / 2.0
         flow_neutral = 100.0 - flow_bull - flow_bear
 
-        prim = md.get("primary_driver", {})
-        sec = md.get("secondary_driver", {})
-        macro_bull = (prim.get("bullish_pct", 0.0) * 0.70) + (sec.get("bullish_pct", 0.0) * 0.30)
-        macro_bear = (prim.get("bearish_pct", 0.0) * 0.70) + (sec.get("bearish_pct", 0.0) * 0.30)
+        prim = md.get("primary_driver", {}) if md.get("primary_driver") else {}
+        sec = md.get("secondary_driver", {}) if md.get("secondary_driver") else {}
+        
+        macro_bull = (float(prim.get("bullish_pct") or 0.0) * 0.70) + (float(sec.get("bullish_pct") or 0.0) * 0.30)
+        macro_bear = (float(prim.get("bearish_pct") or 0.0) * 0.70) + (float(sec.get("bearish_pct") or 0.0) * 0.30)
         macro_neutral = 100.0 - macro_bull - macro_bear
 
         blend_bull = (flow_bull * 0.50) + (macro_bull * 0.50)
         blend_bear = (flow_bear * 0.50) + (macro_bear * 0.50)
         blend_neutral = 100.0 - blend_bull - blend_bear
 
-        vd_net = fd.get("volume_buy_pct", 50.0) - fd.get("volume_sell_pct", 50.0)
-        lf_net = fd.get("liquidity_absorb_pct", 50.0) - fd.get("liquidity_distribute_pct", 50.0)
+        vd_net = vol_buy - vol_sell
+        lf_net = liq_abs - liq_dist
 
         resolution_type = "TRUE TREND"
         
