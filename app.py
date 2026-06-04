@@ -22,67 +22,15 @@ if "chat_history" not in st.session_state:
 master_left, master_right = st.columns([2, 3])
 
 # ====================================================
-# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2)
+# 🎛️ LEFT MASTER COLUMN (PANE 1 & PANE 2 - REARRANGED)
 # ====================================================
 with master_left:
     
-    # 📌 PANE 1: STATIC CONTROL PANEL (Top Left)
-    st.markdown("### 📊 Control Panel")
-    with st.expander("🔑 Authentication", expanded=True):
-        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
-        if api_key:
-            st.session_state["api_key"] = api_key
-
-    pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
-    user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
-    
-    generate_btn = st.button("⚡ Generate & Append Report", use_container_width=True)
-
-    if generate_btn:
-        if not api_key:
-            st.error("Please enter your Gemini API Key in the sidebar.")
-        else:
-            with st.spinner("Retrieving engine state and querying Gemini..."):
-                try:
-                    # 1. Initialize your engine
-                    engine = ReportEngine("market_state.json")
-                    
-                    # 2. Try running the skeleton generator without arguments if it reads from the JSON directly
-                    skeleton = engine.generate_report_skeleton()
-                    
-                    client = genai.Client(api_key=api_key)
-                    system_instruction = """
-                    You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
-                    Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
-                    """
-                    
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"Populate this skeleton:\n\n{skeleton}",
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            temperature=0.2
-                        )
-                    )
-                    
-                    # Append to our rolling stream timeline with a timestamp
-                    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{response.text}\n\n---"
-                    
-                    st.session_state["report_stream"].append(new_report_block)
-                    st.success(f"Appended {pair} Report to Stream!")
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Engine Error: {e}")
-
-    st.markdown("---")
-
-    # 💬 PANE 2: INDEPENDENT CHAT WINDOW (Bottom Left)
+    # 👑 PANE 1: MENTOR CHAT (Now at the top for maximum productivity)
     st.markdown("### 💬 Mentor Chat")
     
     # Creates a fixed-height scrollable window specifically for the chat
-    chat_container = st.container(height=400)
+    chat_container = st.container(height=350)
     with chat_container:
         if not st.session_state["chat_history"]:
             st.info("Ask a question below to start discussing your current setup.")
@@ -110,6 +58,57 @@ with master_left:
         else:
             st.session_state["chat_history"].append({"role": "assistant", "text": "Please generate a market report first so I have data to analyze with you."})
         st.rerun()
+
+    st.markdown("---")
+
+    # 📊 PANE 2: LIVE MARKET INPUTS & ACTION BUTTON
+    st.markdown("### ⚙️ Strategy Console")
+    pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
+    user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
+    
+    generate_btn = st.button("⚡ Generate & Append Report", use_container_width=True)
+
+    if generate_btn:
+        if not api_key:
+            st.error("Please enter your Gemini API Key at the bottom of the console.")
+        else:
+            with st.spinner("Processing engine state..."):
+                try:
+                    engine = ReportEngine("market_state.json")
+                    skeleton = engine.generate_report_skeleton()
+                    
+                    client = genai.Client(api_key=api_key)
+                    system_instruction = """
+                    You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
+                    Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
+                    """
+                    
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"Populate this skeleton:\n\n{skeleton}",
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.2
+                        )
+                    )
+                    
+                    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{response.text}\n\n---"
+                    
+                    st.session_state["report_stream"].append(new_report_block)
+                    st.success(f"Appended {pair} Report to Stream!")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Engine Error: {e}")
+
+    st.markdown("---")
+
+    # 🔑 PANE 3: AUTHENTICATION (Moved to the bottom since it's "set-and-forget")
+    with st.expander("🔑 Authentication", expanded=False):  # Set expanded=False to keep it collapsed and clean
+        api_key = st.text_input("Gemini API Key", type="password", value=st.session_state.get("api_key", ""))
+        if api_key:
+            st.session_state["api_key"] = api_key
 
 # ====================================================
 # 📜 RIGHT MASTER COLUMN (PANE 3: THE REPORT STREAM)
