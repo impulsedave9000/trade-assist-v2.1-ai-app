@@ -125,6 +125,12 @@ with master_left:
                 try:
                    
                     from engine import ReportEngine
+                    
+                    # 🔍 DIAGNOSTIC CHECK: Read the raw data file directly from disk
+                    with open("market_state.json", "r") as f:
+                    raw_json_data = f.read()
+                    st.sidebar.warning("📦 Raw JSON File Content Data:")
+                    st.sidebar.code(raw_json_data, language="json")
                     # Instantiate Engine passing the dynamic inputs directly from the Streamlit UI frame
                     engine_instance = ReportEngine("market_state.json", live_pair=pair, live_bias=user_bias)
                     skeleton = engine_instance.generate_report_skeleton(report_mode=mode_tag)
