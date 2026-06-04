@@ -108,12 +108,7 @@ with master_left:
         else:
             with st.spinner("Processing engine state..."):
                 try:
-                    # 🔍 DIAGNOSTIC CHECK: Read raw data file directly from disk
-                    with open("market_state.json", "r") as f:
-                        raw_json_data = f.read()
-                    st.sidebar.warning("📦 Raw JSON File Content Data:")
-                    st.sidebar.code(raw_json_data, language="json")
-                   
+                                      
                     # Force Python to drop cached module tracking
                     if 'engine' in sys.modules:
                         del sys.modules['engine']
@@ -139,12 +134,15 @@ with master_left:
                     5. CAPITAL PROTECTION: The vocabulary in the execution logic scenarios must analyze stop placement relative to the 25-pip stop boundary. Flag whether the stop is "Shielded" behind the big boys' resting limit blocks or completely "Exposed" to quick liquidity sweeps.
                     """
                     
+                    # 🌐 Enable Google Search Grounding right inside your app
                     response = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=f"Populate this skeleton:\n\n{skeleton}",
+                        contents=f"Populate this skeleton using the latest live market data from TradingView or Investing.com:\n\n{skeleton}",
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction,
-                            temperature=0.2
+                            temperature=0.2,
+                            # 🔍 This turns on the live internet search engine feature!
+                            tools=[types.Tool(google_search=types.GoogleSearch())]
                         )
                     )
                     formatted_report = response.text.replace("\n", "  \n")
