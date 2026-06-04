@@ -89,7 +89,12 @@ with master_left:
     else:
         pair = selected_option.strip().upper()
     
+    # Locate this section under '### ⚙️ Strategy Console' in your app.py
     user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
+    
+    # NEW: Mode select toggle dropdown to choose between architecture lenses
+    report_mode = st.selectbox("Select Report Execution Engine", ["Assist Trader v1.xx (ta)", "Assist Trader v2.xx (ta2)"])
+    mode_tag = "TA" if "v1.xx" in report_mode else "TA2"
     
     generate_btn = st.button("⚡ Generate & Append Report", use_container_width=True)
 
@@ -99,22 +104,25 @@ with master_left:
         else:
             with st.spinner("Processing engine state..."):
                 try:
-                    engine = ReportEngine("market_state.json")
-                    skeleton = engine.generate_report_skeleton()
+                    # Instantiate Engine passing the dynamic inputs directly from the Streamlit UI frame
+                    engine_instance = ReportEngine("market_state.json", live_pair=pair, live_bias=user_bias)
+                    skeleton = engine_instance.generate_report_skeleton(report_mode=mode_tag)
                     
-                    client = genai.Client(api_key=api_key)
+                    client = genai.Client(api_key=api_key)				
                     
-                    # 🛡️ UPDATED SYSTEM INSTRUCTIONS WITH DATA SAFETY RULES
+                    # 🛡️ THE DEFINITIVE ANTI-ASSUMPTION GUARDRAIL SYSTEM
+                    # Replace your old system_instruction string block with this exact configuration
                     system_instruction = """
-                    You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
-                    Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
+                    You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor operating with a 16-year market perspective (trading since 2008). Your single remaining duty is to populate the string-bracketed placeholders (e.g., [LLM_INSERT_X]) embedded inside the provided skeleton file.
                     
-                    CRITICAL DATA SAFETY DIRECTIVES:
-                    1. DATA FRESHNESS CHECK: Before populating any placeholders, verify that the data feed in the provided skeleton is live and current.
-                    2. ANTI-STALE CACHE HALT: If you detect that the market state data is cached, stale, outdated, or failed to update from live sources, you must immediately HALT all reporting.
-                    3. ERROR OUTPUT: In the event of a stale data halt, do not populate the skeleton. Instead, output exactly: "CRITICAL ERROR: Live data collection failed. Stale/Cached data detected. Reporting halted for safety."
-                    
-                    Remember: Inaccurate data is infinitely worse than getting no data. Protect the capital.
+                    CRITICAL OPERATIONAL RULES:
+                    1. NO CALCULATION ATTEMPTS: The numerical values, conviction matrices, progress bars, and pip distances are already pre-calculated, frozen, and hardcoded in the skeleton by a sterile Python calculation core. You are strictly forbidden from changing, re-calculating, or shifting any of these fixed coordinates.
+                    2. ANTI-SYCOPHANCY RULE: Do not manipulate language to flatter the user's bias ("YOUR BIAS"). If the hardcoded confluenced bias is contradictory to what the user wants, you must expose this trap mercilessly inside the DEVIL'S ADVOCATE briefing module.
+                    3. THE TWO-TIER TRANSLATION FRAMEWORK:
+                       - Tier 1 Sections (labeled _T1 or _STRUCTURAL): Write in formal, precise, professional quantitative language stripped of standard media fluff.
+                       - Tier 2 Commentary Sections (labeled _T2 or _MENTOR): Write in plain-English, casual, direct remarks from an experienced mentor. Translate the raw numbers into physical order book concepts using ONLY our specific vocabulary: "Big Boys" (Institutions), "Retail" (Trapped herd), "Cushions/Floors" (Support), and "Ceilings/Lids/Roadblocks" (Resistance). Always wrap Tier 2 text completely in italics (*text*).
+                    4. MOBILE LAYOUT PROTECTION: Keep all bullet points stacked vertically. Never introduce nested list indicators (such as "- -"). Use clean single carriage returns to hold your comments next to the ladder items.
+                    5. CAPITAL PROTECTION: The vocabulary in the execution logic scenarios must analyze stop placement relative to the 25-pip stop boundary. Flag whether the stop is "Shielded" behind the big boys' resting limit blocks or completely "Exposed" to quick liquidity sweeps.
                     """
                     
                     response = client.models.generate_content(
