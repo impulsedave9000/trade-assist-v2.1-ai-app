@@ -1,8 +1,26 @@
 import streamlit as st
+import sys
+import importlib
 import datetime
 from google import genai
 from google.genai import types
+
+# 1. FORCE STREAMLIT TO WIPE MEMORY LOCKS
+st.cache_data.clear()
+st.cache_resource.clear()
+
+# 2. OBLITERATE THE ENGINE SYSTEM FROM CACHE
+if 'engine' in sys.modules:
+    del sys.modules['engine']
+
+# 3. FRESH IMPORT FROM DISK
+import engine
+importlib.reload(engine)
+
+# 4. NOW EXTRACT THE CLEAN OBJECT
 from engine import ReportEngine
+
+
 
 # 1. Force the app into ultra-wide mode to support 3 columns comfortably
 st.set_page_config(page_title="FX Quant Command Center", layout="wide")
@@ -104,10 +122,7 @@ with master_left:
         else:
             with st.spinner("Processing engine state..."):
                 try:
-                    # 🟢 FORCE PYTHON TO WIPE EXPLICIT CACHE AND RELOAD DISK LOGIC
-                    import importlib
-                    import engine
-                    importlib.reload(engine)
+                   
                     from engine import ReportEngine
                     # Instantiate Engine passing the dynamic inputs directly from the Streamlit UI frame
                     engine_instance = ReportEngine("market_state.json", live_pair=pair, live_bias=user_bias)
