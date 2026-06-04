@@ -81,24 +81,45 @@ with master_left:
                 try:
                     client = genai.Client(api_key=api_key)
                     
-                    search_prompt = f"""
-                    Perform a real-time search of TradingView and Investing.com for the live market conditions of the {pair} pair right now.
-                    Locate the current spot price, macro driver developments, and institutional order parameters or CME futures positions.
-                    
-                    Output your findings strictly as a single clean JSON dictionary matching this template. Do not wrap it in markdown code blocks or backticks, just return the raw string:
-                    {{
-                        "spot_price": 0.00000,
-                        "flow_data": {{"volume_buy_pct": 50, "volume_sell_pct": 50, "liquidity_absorb_pct": 50, "liquidity_distribute_pct": 50}},
-                        "macro_data": {{
-                            "primary_driver": {{"name": "Main Driver Name", "bullish_pct": 50, "bearish_pct": 50}},
-                            "secondary_driver": {{"name": "Secondary Driver Name", "bullish_pct": 50, "bearish_pct": 50}}
-                        }},
-                        "price_levels": {{
-                            "supply": [{{"price": 0.00000, "timeframe": "H1", "label": "Nearest Supply Wall", "probability": "HIGH", "icon": "🔥"}}],
-                            "demand": [{{"price": 0.00000, "timeframe": "H1", "label": "Nearest Demand Wall", "probability": "HIGH", "icon": "🔥"}}]
-                        }}
-                    }}
-                    """
+                    search_prompt = """
+Execute a real-time web search query for current market conditions regarding the currency pair. 
+Return your findings strictly as a single, unquoted raw JSON dictionary. 
+Do not wrap it in markdown block code wrappers.
+
+JSON Schema Required:
+{
+    "spot_price": 0.71320,
+    "quote_time_utc": "YYYY-MM-DD HH:MM:SS",
+    "flow_data": {
+        "volume_buy_pct": 50,
+        "volume_sell_pct": 50,
+        "liquidity_absorb_pct": 50,
+        "liquidity_distribute_pct": 50
+    },
+    "macro_data": {
+        "primary_driver": {
+            "name": "Central Bank Interest Rate Divergence",
+            "bullish_pct": 30,
+            "bearish_pct": 30
+        },
+        "secondary_driver": {
+            "name": "Global Risk Sentiment Dynamics",
+            "bullish_pct": 20,
+            "bearish_pct": 20
+        }
+    },
+    "price_levels": {
+        "supply": [
+            {"price": 0.71850, "timeframe": "H1", "label": "Order Block Resistance", "probability": "HIGH", "flow_note": "Supply Wall Defended"},
+            {"price": 0.72500, "timeframe": "D1", "label": "HTF Technical Cluster", "probability": "MED", "flow_note": "Stale Rest-Lids"}
+        ],
+        "demand": [
+            {"price": 0.71100, "timeframe": "H1", "label": "Dynamic Bid Block", "probability": "HIGH", "flow_note": "Cushion Density Thick"},
+            {"price": 0.70400, "timeframe": "W1", "label": "HTF Trend Baseline", "probability": "LOW", "flow_note": "Liquidity Pool Floor"}
+        ]
+    }
+}
+""" 
                     
                     search_response = client.models.generate_content(
                         model="gemini-2.5-flash",
