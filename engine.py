@@ -1,56 +1,12 @@
 import json
-import urllib.request
 from datetime import datetime
 
 class ReportEngine:
-    def __init__(self, data_path, live_pair=None, live_bias=None):
-        # 1. Start with your exact core data structure as the sterile baseline
-        self.data = {
-            "spot_price": 0.65420,
-            "flow_data": {
-                "volume_buy_pct": 65, "volume_sell_pct": 35,
-                "liquidity_absorb_pct": 30, "liquidity_distribute_pct": 70
-            },
-            "macro_data": {
-                "primary_driver": { "name": "RBA Hawkish Hold", "bullish_pct": 70, "bearish_pct": 10 },
-                "secondary_driver": { "name": "DXY Profit Taking", "bullish_pct": 60, "bearish_pct": 20 }
-            },
-            "price_levels": {
-                "supply": [
-                    {"price": 0.65920, "timeframe": "H1", "label": "Unmitigated Order Block", "probability": "HIGH", "icon": "🔥"},
-                    {"price": 0.65670, "timeframe": "D1", "label": "Daily Range High", "probability": "MED", "icon": "💧"}
-                ],
-                "demand": [
-                    {"price": 0.65170, "timeframe": "H1", "label": "Resting Bid Wall", "probability": "HIGH", "icon": "🔥"},
-                    {"price": 0.64920, "timeframe": "W1", "label": "Weekly Key Support", "probability": "LOW", "icon": "❄"}
-                ]
-            }
-        }
-
-        # 🌐 PROGRAMMATIC EXTRACTOR: Reach out to the live world dynamically
-        try:
-            pair_ticker = live_pair if live_pair else "AUDUSD"
-            # Target a clean, zero-auth public financial tracking matrix
-            url = f"https://api.exchangerate-api.com/v4/latest/USD"
-            
-            with urllib.request.urlopen(url, timeout=5) as response:
-                web_data = json.loads(response.read().decode())
-                
-                if "rates" in web_data:
-                    usd_aud = web_data["rates"].get("AUD", 1.528)
-                    # Dynamically calculate the live spot exchange rate based on currency selection
-                    current_live_spot = round(1 / usd_aud, 5) if pair_ticker == "AUDUSD" else 0.65420
-                    
-                    # Overwrite the static memory snapshot with actual market coordinates
-                    self.data["spot_price"] = current_live_spot
-        except Exception as e:
-            # If the network environment timeouts, gracefully keep going with baseline matrix
-            pass
-
-        # Establish dynamic parameters for your math models
+    def __init__(self, data_dict, live_pair=None, live_bias=None):
+        self.data = data_dict
         self.pair = live_pair if live_pair else "AUDUSD"
         self.user_bias = live_bias if live_bias else "NEUTRAL"
-        self.spot = self.data.get("spot_price", 0.65420)
+        self.spot = self.data.get("spot_price", 0.0)
 
     def generate_bar(self, left_pct, right_pct, left_emoji="🔴", right_emoji="🟢"):
         total = left_pct + right_pct
