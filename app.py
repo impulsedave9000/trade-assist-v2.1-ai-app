@@ -40,12 +40,15 @@ with master_left:
 
     if generate_btn:
         if not api_key:
-            st.error("Please enter your Gemini API Key above.")
+            st.error("Please enter your Gemini API Key in the sidebar.")
         else:
-            with st.spinner("Processing engine state..."):
+            with st.spinner("Retrieving engine state and querying Gemini..."):
                 try:
+                    # 1. Initialize your engine
                     engine = ReportEngine("market_state.json")
-                    skeleton = engine.generate_report_skeleton(pair=pair, bias=user_bias)
+                    
+                    # 2. Try running the skeleton generator without arguments if it reads from the JSON directly
+                    skeleton = engine.generate_report_skeleton()
                     
                     client = genai.Client(api_key=api_key)
                     system_instruction = """
@@ -62,7 +65,7 @@ with master_left:
                         )
                     )
                     
-                    # 💡 Key adjustment: Append to our rolling stream timeline with a timestamp
+                    # Append to our rolling stream timeline with a timestamp
                     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{response.text}\n\n---"
                     
