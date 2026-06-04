@@ -103,9 +103,18 @@ with master_left:
                     skeleton = engine.generate_report_skeleton()
                     
                     client = genai.Client(api_key=api_key)
+                    
+                    # 🛡️ UPDATED SYSTEM INSTRUCTIONS WITH DATA SAFETY RULES
                     system_instruction = """
                     You are a Senior, cold-blooded Quantitative Forex Analyst and trading mentor.
                     Fill out the bracketed placeholders exactly. Do not alter the calculations, percentages, graphic bars, or ladders.
+                    
+                    CRITICAL DATA SAFETY DIRECTIVES:
+                    1. DATA FRESHNESS CHECK: Before populating any placeholders, verify that the data feed in the provided skeleton is live and current.
+                    2. ANTI-STALE CACHE HALT: If you detect that the market state data is cached, stale, outdated, or failed to update from live sources, you must immediately HALT all reporting.
+                    3. ERROR OUTPUT: In the event of a stale data halt, do not populate the skeleton. Instead, output exactly: "CRITICAL ERROR: Live data collection failed. Stale/Cached data detected. Reporting halted for safety."
+                    
+                    Remember: Inaccurate data is infinitely worse than getting no data. Protect the capital.
                     """
                     
                     response = client.models.generate_content(
