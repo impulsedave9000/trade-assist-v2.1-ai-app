@@ -84,7 +84,6 @@ with master_left:
     st.markdown("### ⚙️ Strategy Console")
     regular_pairs = ["AUDUSD","NZDUSD", "EURUSD", "GBPUSD", "USDCAD"]
     selected_option = st.selectbox("Currency Pair", regular_pairs + ["OTHER / CUSTOM"])
-    pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
     if selected_option == "OTHER / CUSTOM":
         pair = st.text_input("Enter Custom Pair (e.g., EURGBP)", "").strip().upper()
     else:
