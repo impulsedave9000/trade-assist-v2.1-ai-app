@@ -82,7 +82,14 @@ with master_left:
 
     # 📊 PANE 3: LIVE MARKET INPUTS & ACTION BUTTON
     st.markdown("### ⚙️ Strategy Console")
+    regular_pairs = ["AUDUSD","NZDUSD", "EURUSD", "GBPUSD", "USDCAD"]
+    selected_option = st.selectbox("Currency Pair", regular_pairs + ["OTHER / CUSTOM"])
     pair = st.text_input("Currency Pair", "AUDUSD").strip().upper()
+    if selected_option == "OTHER / CUSTOM":
+        pair = st.text_input("Enter Custom Pair (e.g., EURGBP)", "").strip().upper()
+    else:
+        pair = selected_option.strip().upper()
+    
     user_bias = st.selectbox("Your Bias", ["NEUTRAL", "BULLISH", "BEARISH"])
     
     generate_btn = st.button("⚡ Generate & Append Report", use_container_width=True)
