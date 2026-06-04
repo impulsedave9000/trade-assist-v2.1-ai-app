@@ -127,11 +127,11 @@ class ReportEngine:
 
 **VOLUME DELTA (H1):**
 ㅤㅤㅤㅤ{self.data["flow_data"]["volume_sell_pct"]}% {vol_bar} {self.data["flow_data"]["volume_buy_pct"]}%
-SELLㅤㅤㅤㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%]ㅤㅤㅤㅤBUY
+ㅤㅤㅤSELLㅤㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%]ㅤㅤBUY
 
 **LIQUIDITY FLOW (H1):**
 ㅤㅤㅤㅤ{self.data["flow_data"]["liquidity_absorb_pct"]}% {liq_bar} {self.data["flow_data"]["liquidity_distribute_pct"]}%
-ABSORBㅤㅤㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%]ㅤㅤㅤㅤㅤㅤㅤDISTRIBUTE
+ㅤㅤABSORBㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%]ㅤㅤㅤDISTRIBUTE
                                             
 **▸ FLOW INTERPRETATION:**
 - **Delta Signal:** [LLM_INSERT_DELTA_SIGNAL]
