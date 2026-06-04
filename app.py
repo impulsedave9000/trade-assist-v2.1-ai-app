@@ -43,7 +43,7 @@ with master_left:
     chat_container = st.container(height=350)
     with chat_container:
         if not st.session_state["chat_history"]:
-            st.info("Ask a question below to start discussing your current setup.")
+            st.info("Ask a question below to start discussing your current setup.(Gemini 2.0 flash)")
         for msg in st.session_state["chat_history"]:
             with st.chat_message(msg["role"]):
                 st.write(msg["text"])
