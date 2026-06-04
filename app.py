@@ -1,24 +1,14 @@
 import streamlit as st
+import datetime
+
 import sys
 import importlib
-import datetime
+
 from google import genai
 from google.genai import types
-
-# 1. FORCE STREAMLIT TO WIPE MEMORY LOCKS
-st.cache_data.clear()
-st.cache_resource.clear()
-
-# 2. OBLITERATE THE ENGINE SYSTEM FROM CACHE
-if 'engine' in sys.modules:
-    del sys.modules['engine']
-
-# 3. FRESH IMPORT FROM DISK
-import engine
-importlib.reload(engine)
-
-# 4. NOW EXTRACT THE CLEAN OBJECT
 from engine import ReportEngine
+
+
 
 
 
@@ -53,6 +43,17 @@ with master_left:
         # 🎚️ The AI Studio Thinking Slider
         # 0 means normal fast mode, steps up by 1024 tokens up to 8192
         thinking_budget = st.slider("🧠 Mentor Thinking Budget", min_value=0, max_value=8192, value=0, step=1024)
+        
+        # 🛠️ NEW: MANUAL ENGINE MAINTENANCE (Placed perfectly right under config)
+    st.markdown("### 🛠️ Engine Maintenance")
+    if st.button("🔄 Force Hard Code & Cache Reset", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        if 'engine' in sys.modules:
+            del sys.modules['engine']
+        st.session_state["report_stream"] = []  # Wipes out stale UI reports hanging out in memory
+        st.success("Cache obliterated & timeline cleared! Ready for fresh data feed...")
+        st.rerun()
 
     # 👑 PANE 2: MENTOR CHAT (Right at the top of your visual workflow)
     st.markdown("### 💬 Mentor Chat")
