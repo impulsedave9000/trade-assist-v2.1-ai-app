@@ -104,6 +104,11 @@ with master_left:
         else:
             with st.spinner("Processing engine state..."):
                 try:
+                    # 🟢 FORCE PYTHON TO WIPE EXPLICIT CACHE AND RELOAD DISK LOGIC
+                    import importlib
+                    import engine
+                    importlib.reload(engine)
+                    from engine import ReportEngine
                     # Instantiate Engine passing the dynamic inputs directly from the Streamlit UI frame
                     engine_instance = ReportEngine("market_state.json", live_pair=pair, live_bias=user_bias)
                     skeleton = engine_instance.generate_report_skeleton(report_mode=mode_tag)
