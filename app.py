@@ -97,9 +97,10 @@ with master_left:
                             temperature=0.2
                         )
                     )
+                    formatted_report = response.text.replace("\n", "  \n")
                     
                     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{response.text}\n\n---"
+                    new_report_block = f"## ⏱️ Report Generated at {timestamp}\n{formatted_report}\n\n---"
                     
                     st.session_state["report_stream"].append(new_report_block)
                     st.success(f"Appended {pair} Report to Stream!")
