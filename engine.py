@@ -126,12 +126,12 @@ class ReportEngine:
 ### **📊 MODULE 1: DUAL FLOW ANALYSIS**
 
 **VOLUME DELTA (H1):**
-{self.data["flow_data"]["volume_sell_pct"]}% {vol_bar} {self.data["flow_data"]["volume_buy_pct"]}%
-"SELL          [NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%] ㅤ     BUY"
+ㅤㅤㅤㅤ{self.data["flow_data"]["volume_sell_pct"]}% {vol_bar} {self.data["flow_data"]["volume_buy_pct"]}%
+SELLㅤㅤㅤㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["vd_net"] >=0 else "BEARISH"} {m["vd_net"]:+}%]ㅤㅤㅤㅤBUY
 
 **LIQUIDITY FLOW (H1):**
-{self.data["flow_data"]["liquidity_absorb_pct"]}% {liq_bar} {self.data["flow_data"]["liquidity_distribute_pct"]}%
-"ABSORB      [NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%] ㅤ     DISTRIBUTE"
+ㅤㅤㅤㅤ{self.data["flow_data"]["liquidity_absorb_pct"]}% {liq_bar} {self.data["flow_data"]["liquidity_distribute_pct"]}%
+ABSORBㅤㅤㅤㅤㅤㅤㅤ[NET: {"BULLISH" if m["lf_net"] >=0 else "BEARISH"} {m["lf_net"]:+}%]ㅤㅤㅤㅤㅤㅤㅤDISTRIBUTE
                                             
 **▸ FLOW INTERPRETATION:**
 - **Delta Signal:** [LLM_INSERT_DELTA_SIGNAL]
