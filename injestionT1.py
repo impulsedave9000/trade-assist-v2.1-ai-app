@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+import urllib.parse
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
@@ -65,102 +66,69 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def fetch_rss_items(self, url: str) -> list:
-        """Robust multi-parser stream reader that forces clean tag extraction."""
+    def fetch_google_search_news(self, query: str) -> list:
+        """Executes full search operations against Google News directory natively."""
         try:
-            req = urllib.request.Request(
-                url, 
-                headers={
-                    "User-Agent": self.user_agent, 
-                    "Accept": "application/xml,text/xml,application/xhtml+xml,text/html"
-                }
-            )
-            with urllib.request.urlopen(req, timeout=7) as response:
-                raw_bytes = response.read()
-                
-                # 1. Try decoding as clean UTF-8 string first
-                try:
-                    html_text = raw_bytes.decode("utf-8", errors="ignore")
-                    soup = BeautifulSoup(html_text, "html.parser")
-                    items = soup.find_all("item")
-                    if items:
-                        return items
-                except Exception:
-                    pass
-                
-                # 2. Fallback directly to the native structural XML parser
-                soup_xml = BeautifulSoup(raw_bytes, "xml")
-                items = soup_xml.find_all("item")
-                if items:
-                    return items
-                    
-                # 3. Last resort layout check for atom/sitemap entries
-                entry_tags = soup_xml.find_all("entry")
-                if entry_tags:
-                    return entry_tags
-                    
-                return []
+            encoded_query = urllib.parse.quote_plus(query)
+            # Request parameters enforce fresh English items sorted by structural relevance
+            url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
+            
+            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml"})
+            with urllib.request.urlopen(req, timeout=8) as response:
+                soup = BeautifulSoup(response.read(), "xml")
+                return soup.find_all("item")
         except Exception:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps cloud-accessible corporate feeds, parsing exactly 5 financial entries per group."""
+        """Sweeps Google Search News queries, applying strict exclusions for corporate fluff."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
+        # Exclusions block common retail tech stocks and lifestyle queries from poluting the asset
+        global_exclusions = '-"TSMC" -"NVIDIA" -"Apple" -"shares" -"stocks" -earnings -cancer -retirement'
+
         # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (Yahoo Finance Forex & Currency Flows)
+        # 1. PURE MACRO VALVE (Targeting Currencies & Yield Dynamics)
         # ----------------------------------------------------
+        macro_query = f'(forex OR currency OR "central bank" OR "bond yields" OR inflation) {global_exclusions} when:48h'
         try:
-            # Hard-locked to the currency-only channel to completely filter out individual stock symbols
-            items = self.fetch_rss_items("https://finance.yahoo.com/news/category-currencies/rss")
-            macro_count = 0
-            for item in items:
-                if macro_count >= 5: 
-                    break
+            items = self.fetch_google_search_news(macro_query)
+            for item in items[:5]:
                 title = item.title.text if item.title else ""
                 if title:
-                    economic_drivers.append(self.process_headline(title, "Macro (Yahoo Currencies)"))
-                    macro_count += 1
+                    economic_drivers.append(self.process_headline(title, "Google Search (Macro)"))
         except Exception:
             pass
 
         # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (MarketWatch International/World Wire)
+        # 2. GEOPOLITICAL VALVE (Targeting Cross-Border Conflicts & Trade Wars)
         # ----------------------------------------------------
+        geo_query = f'(geopolitics OR "trade sanctions" OR "tariffs" OR "military conflict" OR "export control") {global_exclusions} when:48h'
         try:
-            # Swapping away from the search query to a dedicated international wire
-            items = self.fetch_rss_items("https://www.marketwatch.com/rss/worldnews")
-            geo_count = 0
-            for item in items:
-                if geo_count >= 5: 
-                    break
+            items = self.fetch_google_search_news(geo_query)
+            for item in items[:5]:
                 title = item.title.text if item.title else ""
                 if title:
-                    geopolitical_drivers.append(self.process_headline(title, "Geopolitical (MarketWatch World)"))
-                    geo_count += 1
+                    geopolitical_drivers.append(self.process_headline(title, "Google Search (Geopolitical)"))
         except Exception:
             pass
 
         # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (MarketWatch Economy & Central Bank Policy)
+        # 3. SHARED BRIDGE VALVE (Targeting Structural Macro Policies & Indicators)
         # ----------------------------------------------------
+        bridge_query = f'("global economy" OR "macroeconomic indicators" OR GDP OR employment) {global_exclusions} when:48h'
         try:
-            # Shifted completely away from 'topstories' to the strict global macro/economy ticker
-            shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/economy")
-            mw_count = 0
-            for item in shared_items:
-                if mw_count >= 5: 
-                    break
+            items = self.fetch_google_search_news(bridge_query)
+            for item in items[:5]:
                 title = item.title.text if item.title else ""
                 if title:
-                    shared_drivers.append(self.process_headline(title, "Shared Bridge (MW Economy)"))
-                    mw_count += 1
+                    shared_drivers.append(self.process_headline(title, "Google Search (Shared Bridge)"))
         except Exception:
             pass
 
-        # Robust Fallback System if network connections drop entirely
+        # Robust Fallback System if network queries drop out
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
@@ -173,6 +141,7 @@ class DataVacuum:
             "geopolitical_drivers": geopolitical_drivers,
             "shared_drivers": shared_drivers
         }
+
     def vacuum_price_levels(self, current_spot: float) -> list:
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
