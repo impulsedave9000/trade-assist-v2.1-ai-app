@@ -66,7 +66,7 @@ class DataVacuum:
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
     def fetch_rss_items(self, url: str) -> list:
-        """Hardened stream reader that ensures plain-text decoding for cloud servers."""
+        """Robust multi-parser stream reader that forces clean tag extraction."""
         try:
             req = urllib.request.Request(
                 url, 
@@ -76,20 +76,30 @@ class DataVacuum:
                 }
             )
             with urllib.request.urlopen(req, timeout=7) as response:
-                raw_data = response.read()
-                # Force decode to standard utf-8 text to strip any compression artifacts
-                html_text = raw_data.decode("utf-8", errors="ignore")
+                raw_bytes = response.read()
                 
-                # Parse with standard feature-rich parser
-                soup = BeautifulSoup(html_text, "html.parser")
-                items = soup.find_all("item")
+                # 1. Try decoding as clean UTF-8 string first
+                try:
+                    html_text = raw_bytes.decode("utf-8", errors="ignore")
+                    soup = BeautifulSoup(html_text, "html.parser")
+                    items = soup.find_all("item")
+                    if items:
+                        return items
+                except Exception:
+                    pass
                 
-                # Fallback check if the feed uses standard XML nodes instead of HTML items
-                if not items:
-                    soup_xml = BeautifulSoup(raw_data, "xml")
-                    items = soup_xml.find_all("item")
+                # 2. Fallback directly to the native structural XML parser
+                soup_xml = BeautifulSoup(raw_bytes, "xml")
+                items = soup_xml.find_all("item")
+                if items:
+                    return items
                     
-                return items if items else []
+                # 3. Last resort layout check for atom/sitemap entries
+                entry_tags = soup_xml.find_all("entry")
+                if entry_tags:
+                    return entry_tags
+                    
+                return []
         except Exception:
             return []
 
