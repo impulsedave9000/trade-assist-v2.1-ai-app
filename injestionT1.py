@@ -81,18 +81,22 @@ class DataVacuum:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps Google Search News queries, applying strict exclusions for corporate fluff."""
+        """Sweeps Google News using laser-focused macro filters, eliminating equity noise."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # Exclusions block common retail tech stocks and lifestyle queries from poluting the asset
-        global_exclusions = '-"TSMC" -"NVIDIA" -"Apple" -"shares" -"stocks" -earnings -cancer -retirement'
+        # Strict filters targeting system liquidity, global yields, and central bank movements
+        # completely ignoring individual company ticker chatter
+        macro_query = '("RBA" OR "Federal Reserve" OR "interest rates" OR "bond yields" OR "inflation CPI") -stock -shares -earnings -company'
+        
+        # Targeting cross-border trade friction, global supply bottlenecks, or commodity shifts impacting the Aussie dollar
+        geo_query = '("trade tariffs" OR "export controls" OR "sanctions" OR "supply chain disruption") -stock -shares -company'
+        
+        # Targeting foundational macro shifts (GDP print revisions, employment figures, global growth parameters)
+        bridge_query = '("global economy" OR "macroeconomic indicator" OR "GDP growth" OR "unemployment rate") -stock -shares -company'
 
-        # ----------------------------------------------------
-        # 1. PURE MACRO VALVE (Targeting Currencies & Yield Dynamics)
-        # ----------------------------------------------------
-        macro_query = f'(forex OR currency OR "central bank" OR "bond yields" OR inflation) {global_exclusions} when:48h'
+        # 1. PURE MACRO VALVE
         try:
             items = self.fetch_google_search_news(macro_query)
             for item in items[:5]:
@@ -102,10 +106,7 @@ class DataVacuum:
         except Exception:
             pass
 
-        # ----------------------------------------------------
-        # 2. GEOPOLITICAL VALVE (Targeting Cross-Border Conflicts & Trade Wars)
-        # ----------------------------------------------------
-        geo_query = f'(geopolitics OR "trade sanctions" OR "tariffs" OR "military conflict" OR "export control") {global_exclusions} when:48h'
+        # 2. GEOPOLITICAL VALVE
         try:
             items = self.fetch_google_search_news(geo_query)
             for item in items[:5]:
@@ -115,10 +116,7 @@ class DataVacuum:
         except Exception:
             pass
 
-        # ----------------------------------------------------
-        # 3. SHARED BRIDGE VALVE (Targeting Structural Macro Policies & Indicators)
-        # ----------------------------------------------------
-        bridge_query = f'("global economy" OR "macroeconomic indicators" OR GDP OR employment) {global_exclusions} when:48h'
+        # 3. SHARED BRIDGE VALVE
         try:
             items = self.fetch_google_search_news(bridge_query)
             for item in items[:5]:
@@ -128,7 +126,7 @@ class DataVacuum:
         except Exception:
             pass
 
-        # Robust Fallback System if network queries drop out
+        # Robust Fallback System if network queries hit weekend data dry-gaps
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
@@ -141,7 +139,6 @@ class DataVacuum:
             "geopolitical_drivers": geopolitical_drivers,
             "shared_drivers": shared_drivers
         }
-
     def vacuum_price_levels(self, current_spot: float) -> list:
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
