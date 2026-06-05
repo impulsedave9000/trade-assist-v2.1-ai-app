@@ -110,10 +110,10 @@ class DataVacuum:
         shared_drivers = []
 
         # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (Yahoo Finance Forex/Macro Core)
+        # 1. THE PURE MACRO VALVE (Yahoo Finance Forex & Currency Flows)
         # ----------------------------------------------------
         try:
-            # Shifted to the dedicated currency and macro channel
+            # Hard-locked to the currency-only channel to completely filter out individual stock symbols
             items = self.fetch_rss_items("https://finance.yahoo.com/news/category-currencies/rss")
             macro_count = 0
             for item in items:
@@ -130,7 +130,7 @@ class DataVacuum:
         # 2. THE GEOPOLITICAL VALVE (MarketWatch International/World Wire)
         # ----------------------------------------------------
         try:
-            # Pointing strictly to international news assets to capture cross-border shifts
+            # Swapping away from the search query to a dedicated international wire
             items = self.fetch_rss_items("https://www.marketwatch.com/rss/worldnews")
             geo_count = 0
             for item in items:
@@ -147,7 +147,7 @@ class DataVacuum:
         # 3. THE SHARED BRIDGE VALVE (MarketWatch Economy & Central Bank Policy)
         # ----------------------------------------------------
         try:
-            # Swapped away from 'topstories' to the dedicated Global Economic indicator wire
+            # Shifted completely away from 'topstories' to the strict global macro/economy ticker
             shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/economy")
             mw_count = 0
             for item in shared_items:
