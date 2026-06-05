@@ -67,9 +67,13 @@ class SuperchargedVacuum:
             
         return {"name": headline, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def execute(self):
-        if not self.check_time_gate():
-            return "Skipped: Data is less than 5 minutes old."
+    # CHOOSE THIS TO BYPASS THE 5-MIN LOCK DURING TESTING:
+        def execute(self, force=False) -> str:
+            if force or self.check_time_gate():
+                return self.run_ingestion_cycle()
+            else:
+                return "Skipped: Data is less than 5 minutes old."
+        
             
         # Run all intake units
         live_spot = self.vacuum_spot_price()
