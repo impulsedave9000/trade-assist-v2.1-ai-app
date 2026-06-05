@@ -99,8 +99,8 @@ class DataVacuum:
                     if title:
                         economic_drivers.append(self.process_headline(title, source_label))
                         macro_count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"!!! VALVE 1 CRASHED ON {source_label}: {str(e)}")
 
         # ----------------------------------------------------
         # 2. THE GEOPOLITICAL VALVE (CNBC Geopolitics & BBC Proxy)
@@ -126,8 +126,8 @@ class DataVacuum:
                     if title:
                         geopolitical_drivers.append(self.process_headline(title, source_label))
                         geo_count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"!!! VALVE 2 CRASHED ON {source_label}: {str(e)}")
 
         # ----------------------------------------------------
         # 3. THE SHARED BRIDGE VALVE (MarketWatch Global Macro)
@@ -145,8 +145,8 @@ class DataVacuum:
                 if title:
                     shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
                     mw_count += 1
-        except Exception:
-            pass
+            except Exception as e:
+                print(f"!!! VALVE 3 CRASHED ON {source_label}: {str(e)}")
 
         # Robust Fallback System if network connections drop entirely
         if not economic_drivers:
