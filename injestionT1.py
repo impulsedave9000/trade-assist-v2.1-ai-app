@@ -4,12 +4,14 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
 
-class SuperchargedVacuum:
+from datetime import datetime, timedelta, timezone
+
+class DataVacuum:
     def __init__(self, pair="AUDUSD"):
         self.pair = pair.upper()
         self.file_path = "market_state.json"
-        self.sgt_tz = timezone(timedelta(hours=8))
-        
+        self.sgt_tz = timezone(timedelta(hours=8)) # Fixed UTC+8
+
     def check_time_gate(self) -> bool:
         if not os.path.exists(self.file_path):
             return True
