@@ -116,24 +116,24 @@ class DataVacuum:
             pass
 
         # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (CNBC International World News)
+        # 2. THE GEOPOLITICAL VALVE (MarketWatch International News Core)
         # ----------------------------------------------------
         try:
-            # Swapped to the main international wire to prevent empty keyword filters
-            items = self.fetch_rss_items("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=world")
+            # Shifted to a direct wire feed instead of a search filter query to eliminate empty arrays
+            items = self.fetch_rss_items("https://www.marketwatch.com/rss/worldnews")
             geo_count = 0
             for item in items:
                 if geo_count >= 5: 
                     break
                 title = item.title.text if item.title else ""
                 if title:
-                    geopolitical_drivers.append(self.process_headline(title, "Geopolitical (CNBC World)"))
+                    geopolitical_drivers.append(self.process_headline(title, "Geopolitical (MarketWatch World)"))
                     geo_count += 1
         except Exception:
             pass
 
         # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (MarketWatch Global Macro)
+        # 3. THE SHARED BRIDGE VALVE (MarketWatch Top Stories)
         # ----------------------------------------------------
         try:
             shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/topstories")
