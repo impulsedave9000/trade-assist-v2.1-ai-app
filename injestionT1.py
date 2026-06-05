@@ -2,7 +2,6 @@ import json
 import os
 import urllib.request
 import random
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
 
 class DataVacuum:
@@ -10,7 +9,8 @@ class DataVacuum:
         self.pair = pair.upper()
         self.file_path = "market_state.json"
         self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        # Standard developer token for cloud container authentication
+        self.api_token = "fci192748v6q9b2v8clg" 
 
     def check_time_gate(self) -> bool:
         """Enforces the 5-minute data-freshness protective guard rail."""
@@ -37,7 +37,7 @@ class DataVacuum:
         """Live Interbank Exchange Rate API Hook."""
         try:
             url = "https://api.exchangerate-api.com/v4/latest/USD"
-            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 if self.pair == "AUDUSD":
@@ -66,57 +66,55 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def fetch_rss_items(self, url: str) -> list:
-        """High-availability open parser that safely strips cloud encoding."""
+    def fetch_finnhub_news(self) -> list:
+        """Fetches structured global business and macro news from institutional streams."""
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml,text/xml"})
-            with urllib.request.urlopen(req, timeout=7) as response:
-                soup = BeautifulSoup(response.read(), "xml")
-                items = soup.find_all("item")
-                return items if items else []
+            url = f"https://finnhub.io/api/v1/news?category=general&token={self.api_token}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=6) as response:
+                return json.loads(response.read().decode())
         except Exception:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Performs structural local filtering to extract high-signal FX macros."""
+        """Compiles clean, non-equity news lines directly via programmatic streams."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # Pull from open, high-frequency wires that never block cloud services
-        raw_items = self.fetch_rss_items("https://finance.yahoo.com/news/rss")
+        raw_news = self.fetch_finnhub_news()
 
-        # Local algorithmic filter matrices to perfectly sanitize the text
-        equity_noise = ["tsmc", "nvidia", "apple", "shares", "stocks", "earnings", "quarterly", "ipo", "cancer", "clinical"]
-        macro_tokens = ["fed", "rba", "rate", "inflation", "cpi", "yield", "bond", "dollar", "currency", "fx"]
-        geo_tokens = ["tariff", "sanction", "trade war", "geopolit", "border", "military", "export"]
-        bridge_tokens = ["gdp", "economy", "growth", "unemployment", "jobs", "deficit", "recession"]
+        if raw_news and isinstance(raw_news, list):
+            for article in raw_news:
+                title = article.get("headline", "")
+                summary = article.get("summary", "").lower()
+                
+                if not title:
+                    continue
 
-        for item in raw_items:
-            title = item.title.text if item.title else ""
-            t_lower = title.lower()
+                # 1. The Guard Rail: Instantly drop single stock equity ticker noise
+                if any(x in title.upper() or x in summary for x in ["TSMC", "NVIDIA", "APPLE", "SHARES", "STOCKS", "EARNINGS", "IPO"]):
+                    continue
 
-            if not title:
-                continue
+                # 2. Filter into Pure Macro (Rates, Central Banks, Yields, Inflation)
+                if len(economic_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "currency", "dollar", "fx"]):
+                        economic_drivers.append(self.process_headline(title, "API Institutional Macro"))
+                        continue
 
-            # Step 1: The Guard Rail — Instantly drop individual equity noise
-            if any(noise in t_lower for noise in equity_noise):
-                continue
+                # 3. Filter into Geopolitical (Tariffs, Sanctions, Trade Wars, Borders)
+                if len(geopolitical_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military"]):
+                        geopolitical_drivers.append(self.process_headline(title, "API Institutional Geo"))
+                        continue
 
-            # Step 2: Route directly to the corresponding desk based on linguistic tokens
-            if len(economic_drivers) < 5 and any(tok in t_lower for tok in macro_tokens):
-                economic_drivers.append(self.process_headline(title, "FX Core (Macro)"))
-                continue
+                # 4. Filter into Shared Bridge (Foundational Economy, GDP, Jobs)
+                if len(shared_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["gdp", "economy", "growth", "unemployment", "jobs"]):
+                        shared_drivers.append(self.process_headline(title, "API Institutional Bridge"))
+                        continue
 
-            if len(geopolitical_drivers) < 5 and any(tok in t_lower for tok in geo_tokens):
-                geopolitical_drivers.append(self.process_headline(title, "FX Core (Geopolitical)"))
-                continue
-
-            if len(shared_drivers) < 5 and any(tok in t_lower for tok in bridge_tokens):
-                shared_drivers.append(self.process_headline(title, "FX Core (Shared Bridge)"))
-                continue
-
-        # Automated structural fallbacks if the loops run during ultra-quiet weekend market gaps
+        # Automated fallbacks to keep arrays structurally sound if processing hits a quiet gap
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
