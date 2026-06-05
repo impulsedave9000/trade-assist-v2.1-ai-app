@@ -9,8 +9,8 @@ class DataVacuum:
         
     def check_time_gate(self) -> bool:
         """
-        Enforces rule 2b: Returns True if file is missing or data is older than 5 minutes.
-        Returns False to halt the ingestion cycle.
+        Enforces rule 2b: Compares internal JSON data timestamp against current time.
+        If data inside the file is >= 5 minutes old, proceed to ingest.
         """
         if not os.path.exists(self.file_path):
             return True
@@ -23,15 +23,22 @@ class DataVacuum:
             if not last_timestamp_str:
                 return True
                 
-            last_time = datetime.strptime(last_timestamp_str, "%Y-%m-%d %H:%M:%S")
-            time_difference = datetime.now() - last_time
+            # Parse the actual data time stamped inside the file
+            data_time = datetime.strptime(last_timestamp_str, "%Y-%m-%d %H:%M:%S")
+            # Calculate how long ago that data was generated relative to right now
+            age_of_data = datetime.now() - data_time
             
-            # If less than 5 minutes have passed, trigger the lock
-            if time_difference < timedelta(minutes=5):
-                print(f"[!] Time Gate Active: Data is only {time_difference.seconds}s old. Halting.")
+            # If the data age is less than 5 minutes, block execution
+            if age_of_data < timedelta(minutes=5):
+                print(f"[!] Time Gate Active: Data is fresh ({age_of_data.seconds}s old). Halting.")
                 return False
+                
+            # Data is older than 5 minutes! Let it pass
+            print(f"[+] Time Gate Passed: Existing data is stale ({age_of_data.total_seconds() / 60:.1f} mins old). Ingesting new data.")
+            return True
+            
         except Exception as e:
-            print(f"[-] Error reading time gate, forcing override: {e}")
+            print(f"[-] Error parsing internal data clock, forcing override: {e}")
             return True
             
         return True
