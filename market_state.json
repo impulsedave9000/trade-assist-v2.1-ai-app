@@ -1,34 +1,30 @@
 {
-  "pair": "AUDUSD",
-  "spot_price": 0.65420,
-  "user_bias": "BULLISH",
-  "model_type": "ta2",
-  "flow_data": {
-    "volume_buy_pct": 65,
-    "volume_sell_pct": 35,
-    "liquidity_absorb_pct": 30,
-    "liquidity_distribute_pct": 70
-  },
-  "macro_data": {
-    "primary_driver": {
-      "name": "RBA Hawkish Hold",
-      "bullish_pct": 80,
-      "bearish_pct": 20
+    "timestamp": "2026-06-05 17:00:00",
+    "pair": "AUDUSD",
+    "spot_price": 0.6642,
+    "flow_data": {
+        "volume_buy_pct": 50,
+        "volume_sell_pct": 50,
+        "liquidity_absorb_pct": 50,
+        "liquidity_distribute_pct": 50
     },
-    "secondary_driver": {
-      "name": "DXY Profit Taking",
-      "bullish_pct": 60,
-      "bearish_pct": 40
-    }
-  },
-  "price_levels": {
-    "supply": [
-      {"price": 0.65920, "timeframe": "H1", "label": "Unmitigated Order Block", "probability": "HIGH", "icon": "🔥"},
-      {"price": 0.65670, "timeframe": "D1", "label": "Daily Range High", "probability": "MED", "icon": "💧"}
-    ],
-    "demand": [
-      {"price": 0.65170, "timeframe": "H1", "label": "Resting Bid Wall", "probability": "HIGH", "icon": "🔥"},
-      {"price": 0.64920, "timeframe": "W1", "label": "Weekly Key Support", "probability": "LOW", "icon": "❄"}
+    "macro_data": {
+        "primary_driver": {
+            "name": "Waiting for Intake Refresh",
+            "bullish_pct": 50,
+            "bearish_pct": 50
+        },
+        "secondary_driver": {
+            "name": "Waiting for Intake Refresh",
+            "bullish_pct": 50,
+            "bearish_pct": 50
+        }
+    },
+    "raw_price_levels": [
+        {
+            "price": 0.6600,
+            "timeframe": "D1",
+            "label": "Baseline Target"
+        }
     ]
-  }
 }
