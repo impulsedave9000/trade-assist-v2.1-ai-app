@@ -1,15 +1,14 @@
 import streamlit as st
 import json
 import os
+import requests
 from datetime import datetime, timedelta, timezone
 from injestionT1 import DataVacuum
 
 sgt_tz = timezone(timedelta(hours=8))
 
 st.set_page_config(page_title="FX Quant Engine - Viewport", layout="wide")
-current_time_str = datetime.now(sgt_tz ).strftime("%Y-%m-%d %H:%M:%S")
-
-
+current_time_str = datetime.now(sgt_tz).strftime("%Y-%m-%d %H:%M:%S")
 
 st.title("🎛️ FX Quant Core Engine Controller")
 st.caption("Tier 1 Ingestion Viewer — Engine-Head Development Mode")
@@ -19,15 +18,16 @@ col1, col2 = st.columns(2)
 with col1:
     selected_pair = st.text_input("Target Currency Pair", value="AUDUSD")
 
-# Process Activation Mechanism
+    # Process Activation Mechanism
     if st.button("⚡ Kick Ingestion Engine In Motion", use_container_width=True):
-       vacuum_process = DataVacuum(pair=selected_pair)
-       result = vacuum_process.execute(force=True)#change to false to enable 5min limit for data retrieve
-    
-    if "Skipped" in result:
-        st.warning(result)
-    else:
-        st.success(result)
+        vacuum_process = DataVacuum(pair=selected_pair)
+        result = vacuum_process.execute(force=True) # change to false to enable 5min limit
+        
+        # Indented inside the button so it only runs when clicked!
+        if "Skipped" in result:
+            st.warning(result)
+        else:
+            st.success(result)
 
 st.divider()
 
@@ -57,5 +57,3 @@ if os.path.exists("market_state.json"):
         st.error(f"Error reading local data asset: {e}")
 else:
     st.info("No database file found. Click the button above to kick the intake into gear.")
-    
-    # Force container environment rebuild trigger
