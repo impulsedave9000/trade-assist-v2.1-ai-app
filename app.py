@@ -3,7 +3,7 @@ import json
 import os
 import requests
 from datetime import datetime, timedelta, timezone
-from injestionT1 import DataVacuum
+from ingestionT1 import DataVacuum
 
 sgt_tz = timezone(timedelta(hours=8))
 
