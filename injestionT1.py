@@ -2,6 +2,7 @@ import json
 import os
 import urllib.request
 import random
+import yfinance as yf
 from datetime import datetime, timedelta, timezone
 
 class DataVacuum:
@@ -9,8 +10,6 @@ class DataVacuum:
         self.pair = pair.upper()
         self.file_path = "market_state.json"
         self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        # Standard developer token for cloud container authentication
-        self.api_token = "fci192748v6q9b2v8clg" 
 
     def check_time_gate(self) -> bool:
         """Enforces the 5-minute data-freshness protective guard rail."""
@@ -66,53 +65,50 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def fetch_finnhub_news(self) -> list:
-        """Fetches structured global business and macro news from institutional streams."""
-        try:
-            url = f"https://finnhub.io/api/v1/news?category=general&token={self.api_token}"
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=6) as response:
-                return json.loads(response.read().decode())
-        except Exception:
-            return []
-
     def vacuum_macro_and_geo(self) -> dict:
-        """Compiles clean, non-equity news lines directly via programmatic streams."""
+        """Harvests clean data entries utilizing the yfinance ticker framework."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        raw_news = self.fetch_finnhub_news()
-
-        if raw_news and isinstance(raw_news, list):
-            for article in raw_news:
-                title = article.get("headline", "")
-                summary = article.get("summary", "").lower()
-                
-                if not title:
-                    continue
-
-                # 1. The Guard Rail: Instantly drop single stock equity ticker noise
-                if any(x in title.upper() or x in summary for x in ["TSMC", "NVIDIA", "APPLE", "SHARES", "STOCKS", "EARNINGS", "IPO"]):
-                    continue
-
-                # 2. Filter into Pure Macro (Rates, Central Banks, Yields, Inflation)
-                if len(economic_drivers) < 5:
-                    if any(w in title.lower() or w in summary for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "currency", "dollar", "fx"]):
-                        economic_drivers.append(self.process_headline(title, "API Institutional Macro"))
+        try:
+            # Anchor to the US Dollar Index Ticker to fetch pure global macro event news
+            dxy = yf.Ticker("DX-Y.NYB")
+            raw_news = dxy.news
+            
+            if raw_news and isinstance(raw_news, list):
+                for article in raw_news:
+                    title = article.get("title", "")
+                    # yfinance headlines often provide a summary or text snippet
+                    summary = article.get("summary", "").lower() if article.get("summary") else ""
+                    combined_text = (title + " " + summary).lower()
+                    
+                    if not title:
                         continue
 
-                # 3. Filter into Geopolitical (Tariffs, Sanctions, Trade Wars, Borders)
-                if len(geopolitical_drivers) < 5:
-                    if any(w in title.lower() or w in summary for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military"]):
-                        geopolitical_drivers.append(self.process_headline(title, "API Institutional Geo"))
+                    # Local Guard Rail: Force drop equity tickers and single-stock chatter
+                    if any(x in combined_text for x in ["tsmc", "nvidia", "apple", "shares", "stocks", "earnings", "quarterly", "ipo"]):
                         continue
 
-                # 4. Filter into Shared Bridge (Foundational Economy, GDP, Jobs)
-                if len(shared_drivers) < 5:
-                    if any(w in title.lower() or w in summary for w in ["gdp", "economy", "growth", "unemployment", "jobs"]):
-                        shared_drivers.append(self.process_headline(title, "API Institutional Bridge"))
-                        continue
+                    # Slot 1: Pure Macro (Rates, Inflation, Central Banks, Bond Yields)
+                    if len(economic_drivers) < 5:
+                        if any(w in combined_text for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "bond", "currency", "dollar", "fx"]):
+                            economic_drivers.append(self.process_headline(title, "yFinance Macro"))
+                            continue
+
+                    # Slot 2: Geopolitical (Tariffs, Sanctions, Trade Friction, Conflicts)
+                    if len(geopolitical_drivers) < 5:
+                        if any(w in combined_text for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military"]):
+                            geopolitical_drivers.append(self.process_headline(title, "yFinance Geopolitical"))
+                            continue
+
+                    # Slot 3: Shared Bridge (Foundational Economy, Growth, GDP, Unemployment)
+                    if len(shared_drivers) < 5:
+                        if any(w in combined_text for w in ["gdp", "economy", "growth", "unemployment", "jobs", "recession"]):
+                            shared_drivers.append(self.process_headline(title, "yFinance Bridge"))
+                            continue
+        except Exception:
+            pass
 
         # Automated fallbacks to keep arrays structurally sound if processing hits a quiet gap
         if not economic_drivers:
