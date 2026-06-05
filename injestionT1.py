@@ -104,32 +104,33 @@ class DataVacuum:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps cloud-accessible corporate feeds, parsing exactly 5 entries per group."""
+        """Sweeps cloud-accessible corporate feeds, parsing exactly 5 financial entries per group."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
         # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (Yahoo Finance Global Macro/FX)
+        # 1. THE PURE MACRO VALVE (Yahoo Finance Forex/Macro Core)
         # ----------------------------------------------------
         try:
-            items = self.fetch_rss_items("https://finance.yahoo.com/news/rss")
+            # Shifted to the dedicated currency and macro channel
+            items = self.fetch_rss_items("https://finance.yahoo.com/news/category-currencies/rss")
             macro_count = 0
             for item in items:
                 if macro_count >= 5: 
                     break
                 title = item.title.text if item.title else ""
                 if title:
-                    economic_drivers.append(self.process_headline(title, "Macro (Yahoo Finance)"))
+                    economic_drivers.append(self.process_headline(title, "Macro (Yahoo Currencies)"))
                     macro_count += 1
         except Exception:
             pass
 
         # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (MarketWatch International News Core)
+        # 2. THE GEOPOLITICAL VALVE (MarketWatch International/World Wire)
         # ----------------------------------------------------
         try:
-            # Shifted to a direct wire feed instead of a search filter query to eliminate empty arrays
+            # Pointing strictly to international news assets to capture cross-border shifts
             items = self.fetch_rss_items("https://www.marketwatch.com/rss/worldnews")
             geo_count = 0
             for item in items:
@@ -143,17 +144,18 @@ class DataVacuum:
             pass
 
         # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (MarketWatch Top Stories)
+        # 3. THE SHARED BRIDGE VALVE (MarketWatch Economy & Central Bank Policy)
         # ----------------------------------------------------
         try:
-            shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/topstories")
+            # Swapped away from 'topstories' to the dedicated Global Economic indicator wire
+            shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/economy")
             mw_count = 0
             for item in shared_items:
                 if mw_count >= 5: 
                     break
                 title = item.title.text if item.title else ""
                 if title:
-                    shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
+                    shared_drivers.append(self.process_headline(title, "Shared Bridge (MW Economy)"))
                     mw_count += 1
         except Exception:
             pass
