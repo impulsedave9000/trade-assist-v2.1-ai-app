@@ -1,9 +1,7 @@
 import json
 import os
 import urllib.request
-import urllib.parse
 import random
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
 
 class DataVacuum:
@@ -11,7 +9,8 @@ class DataVacuum:
         self.pair = pair.upper()
         self.file_path = "market_state.json"
         self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        # Free Tier Finnhub token to access institutional streams natively
+        self.api_token = "fci192748v6q9b2v8clg" 
 
     def check_time_gate(self) -> bool:
         """Enforces the 5-minute data-freshness protective guard rail."""
@@ -37,7 +36,8 @@ class DataVacuum:
     def vacuum_spot_price(self) -> float:
         """Live Interbank Exchange Rate API Hook."""
         try:
-            req = urllib.request.Request("https://api.exchangerate-api.com/v4/latest/USD", headers={"User-Agent": self.user_agent})
+            url = "https://api.exchangerate-api.com/v4/latest/USD"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 if self.pair == "AUDUSD":
@@ -66,67 +66,56 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def fetch_google_search_news(self, query: str) -> list:
-        """Executes full search operations against Google News directory natively."""
+    def fetch_finnhub_news(self, category: str) -> list:
+        """Fetches structured global macro/forex news from institutional streams."""
         try:
-            encoded_query = urllib.parse.quote_plus(query)
-            # Request parameters enforce fresh English items sorted by structural relevance
-            url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
-            
-            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml"})
-            with urllib.request.urlopen(req, timeout=8) as response:
-                soup = BeautifulSoup(response.read(), "xml")
-                return soup.find_all("item")
+            url = f"https://finnhub.io/api/v1/news?category={category}&token={self.api_token}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                return json.loads(response.read().decode())
         except Exception:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps Google News using laser-focused macro filters, eliminating equity noise."""
+        """Compiles clean, non-equity news lines directly via programmatic streams."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # Strict filters targeting system liquidity, global yields, and central bank movements
-        # completely ignoring individual company ticker chatter
-        macro_query = '("RBA" OR "Federal Reserve" OR "interest rates" OR "bond yields" OR "inflation CPI") -stock -shares -earnings -company'
-        
-        # Targeting cross-border trade friction, global supply bottlenecks, or commodity shifts impacting the Aussie dollar
-        geo_query = '("trade tariffs" OR "export controls" OR "sanctions" OR "supply chain disruption") -stock -shares -company'
-        
-        # Targeting foundational macro shifts (GDP print revisions, employment figures, global growth parameters)
-        bridge_query = '("global economy" OR "macroeconomic indicator" OR "GDP growth" OR "unemployment rate") -stock -shares -company'
+        # Fetch full raw financial wire streams ('general' category covers major global/macro news)
+        raw_news = self.fetch_finnhub_news("general")
 
-        # 1. PURE MACRO VALVE
-        try:
-            items = self.fetch_google_search_news(macro_query)
-            for item in items[:5]:
-                title = item.title.text if item.title else ""
-                if title:
-                    economic_drivers.append(self.process_headline(title, "Google Search (Macro)"))
-        except Exception:
-            pass
+        if raw_news and isinstance(raw_news, list):
+            for article in raw_news:
+                title = article.get("headline", "")
+                summary = article.get("summary", "").lower()
+                
+                if not title:
+                    continue
 
-        # 2. GEOPOLITICAL VALVE
-        try:
-            items = self.fetch_google_search_news(geo_query)
-            for item in items[:5]:
-                title = item.title.text if item.title else ""
-                if title:
-                    geopolitical_drivers.append(self.process_headline(title, "Google Search (Geopolitical)"))
-        except Exception:
-            pass
+                # Explicitly bypass individual stock ticker noise
+                if any(x in title.upper() or x in summary for x in ["TSMC", "NVIDIA", "APPLE", "SHARES", "STOCKS", "EARNINGS"]):
+                    continue
 
-        # 3. SHARED BRIDGE VALVE
-        try:
-            items = self.fetch_google_search_news(bridge_query)
-            for item in items[:5]:
-                title = item.title.text if item.title else ""
-                if title:
-                    shared_drivers.append(self.process_headline(title, "Google Search (Shared Bridge)"))
-        except Exception:
-            pass
+                # Category 1: Pure Macro (Rates, Inflation, Central Banks)
+                if len(economic_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "currency", "dollar"]):
+                        economic_drivers.append(self.process_headline(title, "Finnhub Macro"))
+                        continue
 
-        # Robust Fallback System if network queries hit weekend data dry-gaps
+                # Category 2: Geopolitical (Tariffs, Sanctions, Trade Wars, Conflicts)
+                if len(geopolitical_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict"]):
+                        geopolitical_drivers.append(self.process_headline(title, "Finnhub Geopolitical"))
+                        continue
+
+                # Category 3: Shared Bridge (Foundational Economy, GDP, Growth, Employment)
+                if len(shared_drivers) < 5:
+                    if any(w in title.lower() or w in summary for w in ["gdp", "economy", "growth", "unemployment", "jobs"]):
+                        shared_drivers.append(self.process_headline(title, "Finnhub Shared Bridge"))
+                        continue
+
+        # Automated fallbacks to keep arrays structurally sound if processing hits a quiet dry-patch
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
@@ -139,6 +128,7 @@ class DataVacuum:
             "geopolitical_drivers": geopolitical_drivers,
             "shared_drivers": shared_drivers
         }
+
     def vacuum_price_levels(self, current_spot: float) -> list:
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
