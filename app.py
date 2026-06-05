@@ -20,9 +20,9 @@ with col1:
     selected_pair = st.text_input("Target Currency Pair", value="AUDUSD")
 
 # Process Activation Mechanism
-if st.button("⚡ Kick Ingestion Engine In Motion", use_container_width=True):
-    vacuum_process = DataVacuum(pair=selected_pair)
-    result = vacuum_process.execute(force=True)#change to false to enable 5min limit for data retrieve
+    if st.button("⚡ Kick Ingestion Engine In Motion", use_container_width=True):
+       vacuum_process = DataVacuum(pair=selected_pair)
+       result = vacuum_process.execute(force=True)#change to false to enable 5min limit for data retrieve
     
     if "Skipped" in result:
         st.warning(result)
@@ -57,3 +57,5 @@ if os.path.exists("market_state.json"):
         st.error(f"Error reading local data asset: {e}")
 else:
     st.info("No database file found. Click the button above to kick the intake into gear.")
+    
+    # Force container environment rebuild trigger
