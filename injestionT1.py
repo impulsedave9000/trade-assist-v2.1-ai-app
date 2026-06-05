@@ -65,51 +65,60 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def vacuum_macro_and_geo(self) -> dict:
-        """Harvests clean data entries utilizing the yfinance ticker framework."""
+   def vacuum_macro_and_geo(self) -> dict:
+        """Harvests clean data entries across a multi-asset ticker web to ensure high weekend volume."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        try:
-            # Native currency ticker tracking macro context directly
-            pair_ticker = yf.Ticker("AUDUSD=X")
-            raw_news = pair_ticker.news
+        # A basket of core macro instruments to guarantee news coverage even during quiet hours
+        macro_tickers = ["AUDUSD=X", "DX-Y.NYB", "AU10Y.F"]
+        raw_articles = []
+
+        # Gather news from all target instruments safely
+        for ticker_sym in macro_tickers:
+            try:
+                tk = yf.Ticker(ticker_sym)
+                if tk.news and isinstance(tk.news, list):
+                    raw_articles.extend(tk.news)
+            except Exception:
+                continue
+
+        # Local semantic engine to clean and route data
+        seen_headlines = set()
+        for article in raw_articles:
+            title = article.get("title", "")
+            summary = article.get("summary", "").lower() if article.get("summary") else ""
+            combined_text = (title + " " + summary).lower()
             
-            if raw_news and isinstance(raw_news, list):
-                for article in raw_news:
-                    title = article.get("title", "")
-                    summary = article.get("summary", "").lower() if article.get("summary") else ""
-                    combined_text = (title + " " + summary).lower()
-                    
-                    if not title:
-                        continue
+            if not title or title in seen_headlines:
+                continue
 
-                    # Local Guard Rail: Drop single-stock ticker noise completely
-                    if any(x in combined_text for x in ["tsmc", "nvidia", "apple", "earnings", "quarterly", "ipo"]):
-                        continue
+            # Local Guard Rail: Instantly drop individual corporate equity noise
+            if any(x in combined_text for x in ["tsmc", "nvidia", "apple", "earnings", "quarterly", "ipo", "shares", "stocks"]):
+                continue
 
-                    # Slot 1: Pure Macro (Rates, Inflation, Central Banks, Bond Yields, FX Core)
-                    if len(economic_drivers) < 5:
-                        if any(w in combined_text for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "bond", "currency", "dollar", "fx", "usd", "aud"]):
-                            economic_drivers.append(self.process_headline(title, "yFinance Macro"))
-                            continue
+            seen_headlines.add(title)
 
-                    # Slot 2: Geopolitical (Tariffs, Sanctions, Trade Friction, International Alliances)
-                    if len(geopolitical_drivers) < 5:
-                        if any(w in combined_text for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military", "china", "global"]):
-                            geopolitical_drivers.append(self.process_headline(title, "yFinance Geopolitical"))
-                            continue
+            # Slot 1: Pure Macro (Rates, Inflation, Central Banks, Bond Yields, FX)
+            if len(economic_drivers) < 5:
+                if any(w in combined_text for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "bond", "currency", "dollar", "fx", "usd", "aud"]):
+                    economic_drivers.append(self.process_headline(title, f"yFinance Macro"))
+                    continue
 
-                    # Slot 3: Shared Bridge (Foundational Economy, Growth, GDP, General Macro Market Conditions)
-                    if len(shared_drivers) < 5:
-                        if any(w in combined_text for w in ["gdp", "economy", "growth", "unemployment", "jobs", "recession", "market"]):
-                            shared_drivers.append(self.process_headline(title, "yFinance Bridge"))
-                            continue
-        except Exception:
-            pass
+            # Slot 2: Geopolitical (Tariffs, Sanctions, Trade Friction, Global Shifts)
+            if len(geopolitical_drivers) < 5:
+                if any(w in combined_text for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military", "china", "global", "trade"]):
+                    geopolitical_drivers.append(self.process_headline(title, f"yFinance Geopolitical"))
+                    continue
 
-        # Robust Automated Fallback Layer to maintain schema safety if arrays drop out over weekend gaps
+            # Slot 3: Shared Bridge (Foundational Economy, Growth, GDP, General Macro Conditions)
+            if len(shared_drivers) < 5:
+                if any(w in combined_text for w in ["gdp", "economy", "growth", "unemployment", "jobs", "recession", "market", "economic"]):
+                    shared_drivers.append(self.process_headline(title, f"yFinance Bridge"))
+                    continue
+
+        # Automated fallbacks to keep arrays structurally sound if processing hits an absolute market freeze
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
