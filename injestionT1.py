@@ -76,67 +76,37 @@ class DataVacuum:
             return []
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps cloud-accessible corporate feeds, parsing exactly 5 entries per group."""
+        """Diagnostic mode: Let errors break out so we can read them on-screen."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # 1. Pure Macro Valve Processing
+        # 1. Macro Valve
         macro_urls = [
             ("https://www.dailyfx.com/market-news/rss", "Macro (DailyFX)"),
             ("https://finance.yahoo.com/news/rss", "Macro (Yahoo Finance)") 
         ]
-        macro_count = 0
-        for url, label in macro_urls:
-            if macro_count >= 5: break
-            items = self.fetch_rss_items(url)
-            for item in items:
-                if macro_count >= 5: break
+        
+        # Test just the very first feed without a try/except block to see the real error
+        url, label = macro_urls[0]
+        req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml"})
+        with urllib.request.urlopen(req, timeout=7) as response:
+            soup = BeautifulSoup(response.read(), "xml")
+            items = soup.find_all("item")
+            for item in items[:5]:
                 title = item.title.text if item.title else ""
                 if title:
                     economic_drivers.append(self.process_headline(title, label))
-                    macro_count += 1
 
-        # 2. Geopolitical Valve Processing
-        geo_urls = [
-            ("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=geopolitics", "Geopolitical (CNBC)"),
-            ("http://feeds.feedburner.com/bbcworld", "Geopolitical (BBC)")
-        ]
-        geo_count = 0
-        for url, label in geo_urls:
-            if geo_count >= 5: break
-            items = self.fetch_rss_items(url)
-            for item in items:
-                if geo_count >= 5: break
-                title = item.title.text if item.title else ""
-                if title:
-                    geopolitical_drivers.append(self.process_headline(title, label))
-                    geo_count += 1
-
-        # 3. Shared Bridge Valve Processing
-        shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/topstories")
-        mw_count = 0
-        for item in shared_items:
-            if mw_count >= 5: break
-            title = item.title.text if item.title else ""
-            if title:
-                shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
-                mw_count += 1
-
-        # Fallback system if everything gets completely choked by hosting filters
-        if not economic_drivers:
-            economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
-        if not geopolitical_drivers:
-            geopolitical_drivers.append({"headline": "Global baseline geopolitical risk remains stable.", "source_type": "Geopolitical", "bullish_pct": 50, "bearish_pct": 50})
-        if not shared_drivers:
-            shared_drivers.append({"headline": "Global macro policy landscape trading within normal ranges.", "source_type": "Shared Bridge", "bullish_pct": 50, "bearish_pct": 50})
+        # Dummy data for the rest just to pass validation if the first one works
+        geopolitical_drivers.append({"headline": "Diagnostic Mode Active", "source_type": "Geo", "bullish_pct": 50, "bearish_pct": 50})
+        shared_drivers.append({"headline": "Diagnostic Mode Active", "source_type": "Shared", "bullish_pct": 50, "bearish_pct": 50})
 
         return {
             "economic_drivers": economic_drivers,
             "geopolitical_drivers": geopolitical_drivers,
             "shared_drivers": shared_drivers
         }
-
     def vacuum_price_levels(self, current_spot: float) -> list:
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
