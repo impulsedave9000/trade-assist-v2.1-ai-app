@@ -1,6 +1,6 @@
 import json
 import os
-import requests
+import urllib.request
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
@@ -10,12 +10,7 @@ class DataVacuum:
         self.pair = pair.upper()
         self.file_path = "market_state.json"
         self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        # High-reputation browser headers to ensure clean handshakes with RSS servers
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5"
-        }
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
     def check_time_gate(self) -> bool:
         """Enforces the 5-minute data-freshness protective guard rail."""
@@ -41,10 +36,11 @@ class DataVacuum:
     def vacuum_spot_price(self) -> float:
         """Live Interbank Exchange Rate API Hook."""
         try:
-            url = "https://api.exchangerate-api.com/v4/latest/USD"
-            response = requests.get(url, timeout=5).json()
-            if self.pair == "AUDUSD":
-                return round(1 / response["rates"]["AUD"], 5)
+            req = urllib.request.Request("https://api.exchangerate-api.com/v4/latest/USD", headers={"User-Agent": self.user_agent})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                if self.pair == "AUDUSD":
+                    return round(1 / data["rates"]["AUD"], 5)
         except Exception:
             pass
         return 0.71429
@@ -69,86 +65,65 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
+    def fetch_rss_items(self, url: str) -> list:
+        """Hardened stream reader to bypass cloud data-center firewalls."""
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml,text/xml,*/*"})
+            with urllib.request.urlopen(req, timeout=7) as response:
+                soup = BeautifulSoup(response.read(), "xml")
+                return soup.find_all("item")
+        except Exception:
+            return []
+
     def vacuum_macro_and_geo(self) -> dict:
         """Sweeps cloud-accessible corporate feeds, parsing exactly 5 entries per group."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (DailyFX & Yahoo Finance FX)
-        # ----------------------------------------------------
+        # 1. Pure Macro Valve Processing
         macro_urls = [
             ("https://www.dailyfx.com/market-news/rss", "Macro (DailyFX)"),
             ("https://finance.yahoo.com/news/rss", "Macro (Yahoo Finance)") 
         ]
-
         macro_count = 0
-        for url, source_label in macro_urls:
-            if macro_count >= 5: 
-                break
-            try:
-                res = requests.get(url, headers=self.headers, timeout=5)
-                soup = BeautifulSoup(res.text, "xml")
-                items = soup.find_all("item")
-                
-                for item in items:
-                    if macro_count >= 5: 
-                        break
-                    title = item.title.text if item.title else ""
-                    if title:
-                        economic_drivers.append(self.process_headline(title, source_label))
-                        macro_count += 1
-            except Exception as e:
-                print(f"!!! VALVE 1 CRASHED ON {source_label}: {str(e)}")
-
-        # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (CNBC Geopolitics & BBC Proxy)
-        # ----------------------------------------------------
-        geo_urls = [
-            ("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=geopolitics", "Geopolitical (CNBC)"),
-            ("http://feeds.feedburner.com/bbcworld", "Geopolitical (BBC-FeedBurner)")
-        ]
-
-        geo_count = 0
-        for url, source_label in geo_urls:
-            if geo_count >= 5: 
-                break
-            try:
-                res = requests.get(url, headers=self.headers, timeout=5)
-                soup = BeautifulSoup(res.text, "xml")
-                items = soup.find_all("item")
-                
-                for item in items:
-                    if geo_count >= 5: 
-                        break
-                    title = item.title.text if item.title else ""
-                    if title:
-                        geopolitical_drivers.append(self.process_headline(title, source_label))
-                        geo_count += 1
-            except Exception as e:
-                print(f"!!! VALVE 2 CRASHED ON {source_label}: {str(e)}")
-
-        # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (MarketWatch Global Macro)
-        # ----------------------------------------------------
-        try:
-            res = requests.get("https://www.marketwatch.com/rss/topstories", headers=self.headers, timeout=5)
-            soup = BeautifulSoup(res.text, "xml")
-            items = soup.find_all("item")
-            mw_count = 0
-            
+        for url, label in macro_urls:
+            if macro_count >= 5: break
+            items = self.fetch_rss_items(url)
             for item in items:
-                if mw_count >= 5: 
-                    break
+                if macro_count >= 5: break
                 title = item.title.text if item.title else ""
                 if title:
-                    shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
-                    mw_count += 1
-            except Exception as e:
-                print(f"!!! VALVE 3 CRASHED ON {source_label}: {str(e)}")
+                    economic_drivers.append(self.process_headline(title, label))
+                    macro_count += 1
 
-        # Robust Fallback System if network connections drop entirely
+        # 2. Geopolitical Valve Processing
+        geo_urls = [
+            ("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=geopolitics", "Geopolitical (CNBC)"),
+            ("http://feeds.feedburner.com/bbcworld", "Geopolitical (BBC)")
+        ]
+        geo_count = 0
+        for url, label in geo_urls:
+            if geo_count >= 5: break
+            items = self.fetch_rss_items(url)
+            for item in items:
+                if geo_count >= 5: break
+                title = item.title.text if item.title else ""
+                if title:
+                    geopolitical_drivers.append(self.process_headline(title, label))
+                    geo_count += 1
+
+        # 3. Shared Bridge Valve Processing
+        shared_items = self.fetch_rss_items("https://www.marketwatch.com/rss/topstories")
+        mw_count = 0
+        for item in shared_items:
+            if mw_count >= 5: break
+            title = item.title.text if item.title else ""
+            if title:
+                shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
+                mw_count += 1
+
+        # Fallback system if everything gets completely choked by hosting filters
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
@@ -163,7 +138,6 @@ class DataVacuum:
         }
 
     def vacuum_price_levels(self, current_spot: float) -> list:
-        """Generates clear floor and ceiling execution coordinates around the spot."""
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
             {"price": round(current_spot + 0.0045, 5), "timeframe": "H4", "label": "Major Institutional Supply Valve"},
@@ -172,7 +146,6 @@ class DataVacuum:
         ]
 
     def run_ingestion_cycle(self) -> str:
-        """Compiles the multi-source streams directly into the clean data asset."""
         live_spot = self.vacuum_spot_price()
         flow_feed = self.vacuum_flow_data()
         macro_geo_feed = self.vacuum_macro_and_geo()
