@@ -1,6 +1,8 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+sgt_tz = timezone(timedelta(hours=8))
 
 class DataVacuum:
     def __init__(self, pair="AUDUSD"):
@@ -26,9 +28,10 @@ class DataVacuum:
             # Parse the actual data time stamped inside the file
             data_time = datetime.strptime(last_timestamp_str, "%Y-%m-%d %H:%M:%S")
             # Calculate how long ago that data was generated relative to right now
-            age_of_data = datetime.now() - data_time
-            
-            # If the data age is less than 5 minutes, block execution
+            current_time = datetime.now(sgt_tz).replace(tzinfo=None)
+             age_of_data = current_time - data_time
+           
+           # If the data age is less than 5 minutes, block execution
             if age_of_data < timedelta(minutes=5):
                 print(f"[!] Time Gate Active: Data is fresh ({age_of_data.seconds}s old). Halting.")
                 return False
@@ -81,7 +84,7 @@ class DataVacuum:
         
         # Construct the payload manifest
         manifest = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now(sgt_tz).strftime("%Y-%m-%d %H:%M:%S"),
             "pair": self.pair,
             "spot_price": spot_price_feed,
             "flow_data": flow_data_feed,
