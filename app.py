@@ -1,13 +1,14 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import datetimefrom datetime import datetime, timedelta, timezone
 from injestionT1 import DataVacuum
+
+sgt_tz = timezone(timedelta(hours=8))
 
 st.set_page_config(page_title="FX Quant Engine - Viewport", layout="wide")
 
-# 1. Local Current Time Display at the Top
-current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 st.markdown(f"⏱️ **Local System Time:** `{current_time_str}`")
 
 st.title("🎛️ FX Quant Core Engine Controller")
@@ -32,7 +33,8 @@ st.divider()
 
 # Preserved Data Layout Visualization
 st.subheader("📦 Current Preserved Data Core (`market_state.json`)")
-
+# 1. Local Current Time Display at the Top
+current_time_str = datetime.now(sgt_tz ).strftime("%Y-%m-%d %H:%M:%S")
 if os.path.exists("market_state.json"):
     try:
         with open("market_state.json", "r") as f:
