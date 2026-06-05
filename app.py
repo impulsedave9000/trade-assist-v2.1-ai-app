@@ -22,7 +22,7 @@ with col1:
 # Process Activation Mechanism
 if st.button("⚡ Kick Ingestion Engine In Motion", use_container_width=True):
     vacuum_process = DataVacuum(pair=selected_pair)
-    result = vacuum_process.execute()
+    result = vacuum_process.execute(force=True)#change to false to enable 5min limit for data retrieve
     
     if "Skipped" in result:
         st.warning(result)
