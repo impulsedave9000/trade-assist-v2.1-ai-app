@@ -65,17 +65,15 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-   def vacuum_macro_and_geo(self) -> dict:
+    def vacuum_macro_and_geo(self) -> dict:
         """Harvests clean data entries across a multi-asset ticker web to ensure high weekend volume."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
-        # A basket of core macro instruments to guarantee news coverage even during quiet hours
         macro_tickers = ["AUDUSD=X", "DX-Y.NYB", "AU10Y.F"]
         raw_articles = []
 
-        # Gather news from all target instruments safely
         for ticker_sym in macro_tickers:
             try:
                 tk = yf.Ticker(ticker_sym)
@@ -84,7 +82,6 @@ class DataVacuum:
             except Exception:
                 continue
 
-        # Local semantic engine to clean and route data
         seen_headlines = set()
         for article in raw_articles:
             title = article.get("title", "")
@@ -94,31 +91,26 @@ class DataVacuum:
             if not title or title in seen_headlines:
                 continue
 
-            # Local Guard Rail: Instantly drop individual corporate equity noise
             if any(x in combined_text for x in ["tsmc", "nvidia", "apple", "earnings", "quarterly", "ipo", "shares", "stocks"]):
                 continue
 
             seen_headlines.add(title)
 
-            # Slot 1: Pure Macro (Rates, Inflation, Central Banks, Bond Yields, FX)
             if len(economic_drivers) < 5:
                 if any(w in combined_text for w in ["rate", "fed", "rba", "inflation", "cpi", "yield", "bond", "currency", "dollar", "fx", "usd", "aud"]):
-                    economic_drivers.append(self.process_headline(title, f"yFinance Macro"))
+                    economic_drivers.append(self.process_headline(title, "yFinance Macro"))
                     continue
 
-            # Slot 2: Geopolitical (Tariffs, Sanctions, Trade Friction, Global Shifts)
             if len(geopolitical_drivers) < 5:
                 if any(w in combined_text for w in ["tariff", "sanction", "trade war", "geopolit", "border", "conflict", "military", "china", "global", "trade"]):
-                    geopolitical_drivers.append(self.process_headline(title, f"yFinance Geopolitical"))
+                    geopolitical_drivers.append(self.process_headline(title, "yFinance Geopolitical"))
                     continue
 
-            # Slot 3: Shared Bridge (Foundational Economy, Growth, GDP, General Macro Conditions)
             if len(shared_drivers) < 5:
                 if any(w in combined_text for w in ["gdp", "economy", "growth", "unemployment", "jobs", "recession", "market", "economic"]):
-                    shared_drivers.append(self.process_headline(title, f"yFinance Bridge"))
+                    shared_drivers.append(self.process_headline(title, "yFinance Bridge"))
                     continue
 
-        # Automated fallbacks to keep arrays structurally sound if processing hits an absolute market freeze
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
@@ -159,8 +151,4 @@ class DataVacuum:
             json.dump(manifest, f, indent=4)
         return "Success: Multi-Source Engine Intake Complete!"
 
-    def execute(self, force=False) -> str:
-        if force or self.check_time_gate():
-            return self.run_ingestion_cycle()
-        else:
-            return "Skipped: Data is less than 5 minutes old."
+    def execute(
