@@ -7,9 +7,9 @@ from injestionT1 import DataVacuum
 sgt_tz = timezone(timedelta(hours=8))
 
 st.set_page_config(page_title="FX Quant Engine - Viewport", layout="wide")
+current_time_str = datetime.now(sgt_tz ).strftime("%Y-%m-%d %H:%M:%S")
 
 
-st.markdown(f"⏱️ **Local System Time:** `{current_time_str}`")
 
 st.title("🎛️ FX Quant Core Engine Controller")
 st.caption("Tier 1 Ingestion Viewer — Engine-Head Development Mode")
@@ -34,7 +34,7 @@ st.divider()
 # Preserved Data Layout Visualization
 st.subheader("📦 Current Preserved Data Core (`market_state.json`)")
 # 1. Local Current Time Display at the Top
-current_time_str = datetime.now(sgt_tz ).strftime("%Y-%m-%d %H:%M:%S")
+st.markdown(f"⏱️ **Local System Time:** `{current_time_str}`")
 if os.path.exists("market_state.json"):
     try:
         with open("market_state.json", "r") as f:
