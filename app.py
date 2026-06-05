@@ -1,9 +1,14 @@
 import streamlit as st
 import json
 import os
+from datetime import datetime
 from injestionT1 import DataVacuum
 
 st.set_page_config(page_title="FX Quant Engine - Viewport", layout="wide")
+
+# 1. Local Current Time Display at the Top
+current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+st.markdown(f"⏱️ **Local System Time:** `{current_time_str}`")
 
 st.title("🎛️ FX Quant Core Engine Controller")
 st.caption("Tier 1 Ingestion Viewer — Engine-Head Development Mode")
@@ -33,11 +38,14 @@ if os.path.exists("market_state.json"):
         with open("market_state.json", "r") as f:
             stored_json = json.load(f)
             
-        # Display the live metrics on screen with zero token overhead
+        # Extract file timestamp for display
+        file_ts_str = stored_json.get("timestamp", "Never")
+        
+        # Present the live metrics on screen with zero token overhead
         st.metric(
             label=f"Live Spot Price ({stored_json.get('pair', 'N/A')})", 
             value=f"{stored_json.get('spot_price', 0.0):.5f}",
-            delta=f"Last updated: {stored_json.get('timestamp', 'Never')}"
+            delta=f"Data Feed Timestamp: {file_ts_str}"
         )
         
         # Present the entire raw data schema explicitly for validation
