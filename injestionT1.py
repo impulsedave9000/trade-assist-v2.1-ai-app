@@ -10,9 +10,11 @@ class DataVacuum:
         self.pair = pair.upper()
         self.file_path = "market_state.json"
         self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        # Standard browser headers to bypass rigid server blocks
+        # High-reputation browser headers to ensure clean handshakes with RSS servers
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5"
         }
 
     def check_time_gate(self) -> bool:
@@ -68,17 +70,17 @@ class DataVacuum:
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
     def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps all 5 elite desks, taking up to 5 headlines from each category loop."""
+        """Sweeps cloud-accessible corporate feeds, parsing exactly 5 entries per group."""
         economic_drivers = []
         geopolitical_drivers = []
         shared_drivers = []
 
         # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (DailyFX & Bloomberg)
+        # 1. THE PURE MACRO VALVE (DailyFX & Yahoo Finance FX)
         # ----------------------------------------------------
         macro_urls = [
             ("https://www.dailyfx.com/market-news/rss", "Macro (DailyFX)"),
-            ("https://www.bloomberg.com/feed/bbf/sitemap_news.xml", "Macro (Bloomberg)") 
+            ("https://finance.yahoo.com/news/rss", "Macro (Yahoo Finance)") 
         ]
 
         macro_count = 0
@@ -88,16 +90,12 @@ class DataVacuum:
             try:
                 res = requests.get(url, headers=self.headers, timeout=5)
                 soup = BeautifulSoup(res.text, "xml")
-                items = soup.find_all("item") or soup.find_all("url")
+                items = soup.find_all("item")
                 
                 for item in items:
                     if macro_count >= 5: 
                         break
-                        
                     title = item.title.text if item.title else ""
-                    if not title and item.find("news:title"):
-                        title = item.find("news:title").text
-
                     if title:
                         economic_drivers.append(self.process_headline(title, source_label))
                         macro_count += 1
@@ -105,11 +103,11 @@ class DataVacuum:
                 pass
 
         # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (Reuters & BBC World)
+        # 2. THE GEOPOLITICAL VALVE (CNBC Geopolitics & BBC Proxy)
         # ----------------------------------------------------
         geo_urls = [
-            ("https://feeds.bbci.co.uk/news/world/rss.xml", "Geopolitical (BBC)"),
-            ("https://www.reutersagency.com/feed/?best-regions=international-news&post-type=post", "Geopolitical (Reuters)")
+            ("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=geopolitics", "Geopolitical (CNBC)"),
+            ("http://feeds.feedburner.com/bbcworld", "Geopolitical (BBC-FeedBurner)")
         ]
 
         geo_count = 0
@@ -132,25 +130,25 @@ class DataVacuum:
                 pass
 
         # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (Financial Times)
+        # 3. THE SHARED BRIDGE VALVE (MarketWatch Global Macro)
         # ----------------------------------------------------
         try:
-            res = requests.get("https://www.ft.com/global-economy?format=rss", headers=self.headers, timeout=5)
+            res = requests.get("https://www.marketwatch.com/rss/topstories", headers=self.headers, timeout=5)
             soup = BeautifulSoup(res.text, "xml")
             items = soup.find_all("item")
-            ft_count = 0
+            mw_count = 0
             
             for item in items:
-                if ft_count >= 5: 
+                if mw_count >= 5: 
                     break
                 title = item.title.text if item.title else ""
                 if title:
-                    shared_drivers.append(self.process_headline(title, "Shared Bridge (Financial Times)"))
-                    ft_count += 1
+                    shared_drivers.append(self.process_headline(title, "Shared Bridge (MarketWatch)"))
+                    mw_count += 1
         except Exception:
             pass
 
-        # Robust Fallback System if news targets completely time out
+        # Robust Fallback System if network connections drop entirely
         if not economic_drivers:
             economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
         if not geopolitical_drivers:
