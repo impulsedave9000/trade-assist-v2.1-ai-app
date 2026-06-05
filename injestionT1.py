@@ -103,7 +103,6 @@ class DataVacuum:
         # 1. THE PURE MACRO VALVE (Yahoo Finance Global Macro/FX)
         # ----------------------------------------------------
         try:
-            # Shift completely to Yahoo Finance to bypass the DailyFX server wall
             items = self.fetch_rss_items("https://finance.yahoo.com/news/rss")
             macro_count = 0
             for item in items:
@@ -117,17 +116,18 @@ class DataVacuum:
             pass
 
         # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (CNBC Geopolitics)
+        # 2. THE GEOPOLITICAL VALVE (CNBC International World News)
         # ----------------------------------------------------
         try:
-            items = self.fetch_rss_items("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=geopolitics")
+            # Swapped to the main international wire to prevent empty keyword filters
+            items = self.fetch_rss_items("https://search.cnbc.com/rs/search/view.xml?partnerId=2000&keywords=world")
             geo_count = 0
             for item in items:
                 if geo_count >= 5: 
                     break
                 title = item.title.text if item.title else ""
                 if title:
-                    geopolitical_drivers.append(self.process_headline(title, "Geopolitical (CNBC)"))
+                    geopolitical_drivers.append(self.process_headline(title, "Geopolitical (CNBC World)"))
                     geo_count += 1
         except Exception:
             pass
