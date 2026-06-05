@@ -66,12 +66,30 @@ class DataVacuum:
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
     def fetch_rss_items(self, url: str) -> list:
-        """Hardened stream reader to bypass cloud data-center firewalls."""
+        """Hardened stream reader that ensures plain-text decoding for cloud servers."""
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": "application/xml,text/xml,*/*"})
+            req = urllib.request.Request(
+                url, 
+                headers={
+                    "User-Agent": self.user_agent, 
+                    "Accept": "application/xml,text/xml,application/xhtml+xml,text/html"
+                }
+            )
             with urllib.request.urlopen(req, timeout=7) as response:
-                soup = BeautifulSoup(response.read(), "xml")
-                return soup.find_all("item")
+                raw_data = response.read()
+                # Force decode to standard utf-8 text to strip any compression artifacts
+                html_text = raw_data.decode("utf-8", errors="ignore")
+                
+                # Parse with standard feature-rich parser
+                soup = BeautifulSoup(html_text, "html.parser")
+                items = soup.find_all("item")
+                
+                # Fallback check if the feed uses standard XML nodes instead of HTML items
+                if not items:
+                    soup_xml = BeautifulSoup(raw_data, "xml")
+                    items = soup_xml.find_all("item")
+                    
+                return items if items else []
         except Exception:
             return []
 
