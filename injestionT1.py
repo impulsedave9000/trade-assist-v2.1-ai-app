@@ -134,4 +134,24 @@ class DataVacuum:
     def run_ingestion_cycle(self) -> str:
         live_spot = self.vacuum_spot_price()
         flow_feed = self.vacuum_flow_data()
-        macro_geo_feed = self.vacuum_
+        macro_geo_feed = self.vacuum_macro_and_geo()
+        price_levels = self.vacuum_price_levels(live_spot)
+
+        manifest = {
+            "timestamp": datetime.now(self.sgt_tz).strftime("%Y-%m-%d %H:%M:%S"),
+            "pair": self.pair,
+            "spot_price": live_spot,
+            "flow_data": flow_feed,
+            "macro_data": macro_geo_feed,
+            "raw_price_levels": price_levels
+        }
+
+        with open(self.file_path, "w") as f:
+            json.dump(manifest, f, indent=4)
+        return "Success: Multi-Source Engine Intake Complete!"
+
+    def execute(self, force=False) -> str:
+        if force or self.check_time_gate():
+            return self.run_ingestion_cycle()
+        else:
+            return "Skipped: Data is less than 5 minutes old."
