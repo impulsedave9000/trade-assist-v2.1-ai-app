@@ -29,7 +29,7 @@ class DataVacuum:
             data_time = datetime.strptime(last_timestamp_str, "%Y-%m-%d %H:%M:%S")
             # Calculate how long ago that data was generated relative to right now
             current_time = datetime.now(sgt_tz).replace(tzinfo=None)
-             age_of_data = current_time - data_time
+            age_of_data = current_time - data_time
            
            # If the data age is less than 5 minutes, block execution
             if age_of_data < timedelta(minutes=5):
