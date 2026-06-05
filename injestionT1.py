@@ -69,12 +69,14 @@ class DataVacuum:
             
         return {"name": headline, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    # CHOOSE THIS TO BYPASS THE 5-MIN LOCK DURING TESTING:
-        def execute(self, force=False) -> str:
-            if force or self.check_time_gate():
-                return self.run_ingestion_cycle()
-            else:
-                return "Skipped: Data is less than 5 minutes old."
+      def execute(self, force=False) -> str:
+        """
+        Executes the ingestion cycle. If force=True, it bypasses the 5-minute time gate.
+        """
+        if force or self.check_time_gate():
+            return self.run_ingestion_cycle()
+        else:
+            return "Skipped: Data is less than 5 minutes old."
         
             
         # Run all intake units
