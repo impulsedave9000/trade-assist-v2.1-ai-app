@@ -1,30 +1,36 @@
 {
-    "timestamp": "2026-06-05 17:00:00",
+    "timestamp": "2026-06-06 00:00:00",
     "pair": "AUDUSD",
-    "spot_price": 0.6642,
+    "spot_price": 0.00000,
     "flow_data": {
-        "volume_buy_pct": 50,
-        "volume_sell_pct": 50,
-        "liquidity_absorb_pct": 50,
-        "liquidity_distribute_pct": 50
+        "retail_sentiment": {"buy_pct": 0, "sell_pct": 0},
+        "institutional_tape": {"absorb_pct": 0, "distribute_pct": 0},
+        "order_book_skew": {"bid_volume_pct": 0, "ask_volume_pct": 0}
     },
     "macro_data": {
-        "primary_driver": {
-            "name": "Waiting for Intake Refresh",
-            "bullish_pct": 50,
-            "bearish_pct": 50
-        },
-        "secondary_driver": {
-            "name": "Waiting for Intake Refresh",
-            "bullish_pct": 50,
-            "bearish_pct": 50
-        }
+        "economic_drivers": [
+            {
+                "headline": "",
+                "description": "",
+                "source_type": "",
+                "bullish_pct": 50,
+                "bearish_pct": 50
+            }
+        ],
+        "geopolitical_drivers": [
+            {
+                "headline": "",
+                "description": "",
+                "source_type": "",
+                "bullish_pct": 50,
+                "bearish_pct": 50
+            }
+        ]
     },
     "raw_price_levels": [
-        {
-            "price": 0.6600,
-            "timeframe": "D1",
-            "label": "Baseline Target"
-        }
+        {"price": 0.00000, "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
+        {"price": 0.00000, "timeframe": "H4", "label": "Major Institutional Supply Valve"},
+        {"price": 0.00000, "timeframe": "D1", "label": "Daily Structural Demand Floor"},
+        {"price": 0.00000, "timeframe": "W1", "label": "Extreme Macro Liquidity Pool"}
     ]
 }
