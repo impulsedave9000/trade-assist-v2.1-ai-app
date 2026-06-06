@@ -1,22 +1,45 @@
 import json
 import os
-import requests
+import urllib.request
 import random
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 class DataVacuum:
     def __init__(self, pair="AUDUSD"):
         self.pair = pair.upper()
         self.file_path = "market_state.json"
-        self.sgt_tz = timezone(timedelta(hours=8))  # Locked to UTC+8 system time
-        # Standard browser headers to bypass rigid server blocks
+        self.sgt_tz = timezone(timedelta(hours=8))
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
 
+        # Currency keyword map — modular, expands with any pair
+        self.currency_keywords = {
+            "AUD": ["aud", "australia", "rba", "reserve bank of australia"],
+            "USD": ["usd", "dollar", "fed", "federal reserve", "fomc"],
+            "NZD": ["nzd", "new zealand", "rbnz"],
+            "EUR": ["eur", "euro", "ecb", "european central bank"],
+            "GBP": ["gbp", "pound", "sterling", "boe", "bank of england"],
+            "JPY": ["jpy", "yen", "boj", "bank of japan"],
+        }
+
+        # Extract the two currencies from the requested pair
+        self.active_currencies = self._extract_currencies(self.pair)
+
+        # Build flat keyword list for this pair
+        self.active_keywords = []
+        for ccy in self.active_currencies:
+            self.active_keywords.extend(self.currency_keywords.get(ccy, []))
+
+    def _extract_currencies(self, pair: str) -> list:
+        """Splits a 6-character pair string into two 3-character currency codes."""
+        if len(pair) == 6:
+            return [pair[:3], pair[3:]]
+        return []
+
     def check_time_gate(self) -> bool:
-        """Enforces the 5-minute data-freshness protective guard rail."""
         if not os.path.exists(self.file_path):
             return True
         try:
@@ -25,31 +48,28 @@ class DataVacuum:
             last_timestamp_str = current_data.get("timestamp", "")
             if not last_timestamp_str:
                 return True
-                
             data_time = datetime.strptime(last_timestamp_str, "%Y-%m-%d %H:%M:%S")
             current_time = datetime.now(self.sgt_tz).replace(tzinfo=None)
-            age_of_data = current_time - data_time
-            
-            if age_of_data < timedelta(minutes=5):
+            if (current_time - data_time) < timedelta(minutes=5):
                 return False
             return True
         except Exception:
             return True
 
     def vacuum_spot_price(self) -> float:
-        """Live Interbank Exchange Rate API Hook."""
         try:
             url = "https://api.exchangerate-api.com/v4/latest/USD"
-            response = requests.get(url, timeout=5).json()
-            if self.pair == "AUDUSD":
-                return round(1 / response["rates"]["AUD"], 5)
+            req = urllib.request.Request(url, headers=self.headers)
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                if self.pair == "AUDUSD":
+                    return round(1 / data["rates"]["AUD"], 5)
         except Exception:
             pass
         return 0.71429
 
     def vacuum_flow_data(self) -> dict:
-        """Sucks down market volume proxies and sentiment balances."""
-        buy_pct = random.randint(52, 64) 
+        buy_pct = random.randint(52, 64)
         absorb_pct = random.randint(55, 68)
         return {
             "retail_sentiment": {"buy_pct": buy_pct, "sell_pct": 100 - buy_pct},
@@ -57,8 +77,23 @@ class DataVacuum:
             "order_book_skew": {"bid_volume_pct": random.randint(50, 56), "ask_volume_pct": random.randint(44, 50)}
         }
 
+    def _is_within_time_gate(self, pub_date_str: str) -> bool:
+        """Returns True if the article pubDate is within the -24h window."""
+        try:
+            pub_dt = parsedate_to_datetime(pub_date_str)
+            now_utc = datetime.now(timezone.utc)
+            age = now_utc - pub_dt
+            return age <= timedelta(hours=24)
+        except Exception:
+            # If date cannot be parsed, include the article (fail open)
+            return True
+
+    def _is_relevant(self, text: str) -> bool:
+        """Returns True if the headline contains a keyword for the active pair currencies."""
+        text_lower = text.lower()
+        return any(kw in text_lower for kw in self.active_keywords)
+
     def process_headline(self, title: str, feed_type: str) -> dict:
-        """Calculates direction bias flags based on headline text strings."""
         bullish, bearish = 50, 50
         p_lower = title.lower()
         if any(w in p_lower for w in ["hike", "hawkish", "gain", "rise", "strong", "higher", "surges"]):
@@ -67,105 +102,72 @@ class DataVacuum:
             bullish, bearish = 35, 65
         return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
 
-    def vacuum_macro_and_geo(self) -> dict:
-        """Sweeps all 5 elite desks, taking up to 5 headlines from each category loop."""
-        economic_drivers = []
-        geopolitical_drivers = []
-        shared_drivers = []
-
-        # ----------------------------------------------------
-        # 1. THE PURE MACRO VALVE (DailyFX & Bloomberg)
-        # ----------------------------------------------------
-        macro_urls = [
-            ("https://www.dailyfx.com/market-news/rss", "Macro (DailyFX)"),
-            ("https://www.bloomberg.com/feed/bbf/sitemap_news.xml", "Macro (Bloomberg)") 
-        ]
-
-        macro_count = 0
-        for url, source_label in macro_urls:
-            if macro_count >= 5: 
-                break
-            try:
-                res = requests.get(url, headers=self.headers, timeout=5)
-                soup = BeautifulSoup(res.text, "xml")
-                items = soup.find_all("item") or soup.find_all("url")
-                
-                for item in items:
-                    if macro_count >= 5: 
-                        break
-                        
-                    title = item.title.text if item.title else ""
-                    if not title and item.find("news:title"):
-                        title = item.find("news:title").text
-
-                    if title:
-                        economic_drivers.append(self.process_headline(title, source_label))
-                        macro_count += 1
-            except Exception:
-                pass
-
-        # ----------------------------------------------------
-        # 2. THE GEOPOLITICAL VALVE (Reuters & BBC World)
-        # ----------------------------------------------------
-        geo_urls = [
-            ("https://feeds.bbci.co.uk/news/world/rss.xml", "Geopolitical (BBC)"),
-            ("https://www.reutersagency.com/feed/?best-regions=international-news&post-type=post", "Geopolitical (Reuters)")
-        ]
-
-        geo_count = 0
-        for url, source_label in geo_urls:
-            if geo_count >= 5: 
-                break
-            try:
-                res = requests.get(url, headers=self.headers, timeout=5)
-                soup = BeautifulSoup(res.text, "xml")
-                items = soup.find_all("item")
-                
-                for item in items:
-                    if geo_count >= 5: 
-                        break
-                    title = item.title.text if item.title else ""
-                    if title:
-                        geopolitical_drivers.append(self.process_headline(title, source_label))
-                        geo_count += 1
-            except Exception:
-                pass
-
-        # ----------------------------------------------------
-        # 3. THE SHARED BRIDGE VALVE (Financial Times)
-        # ----------------------------------------------------
+    def _fetch_rss(self, url: str, source_label: str, category: str, collector: list, cap: int):
+        """Fetches one RSS feed and appends relevant, time-gated headlines to collector."""
+        if len(collector) >= cap:
+            return
         try:
-            res = requests.get("https://www.ft.com/global-economy?format=rss", headers=self.headers, timeout=5)
-            soup = BeautifulSoup(res.text, "xml")
+            req = urllib.request.Request(url, headers=self.headers)
+            with urllib.request.urlopen(req, timeout=8) as r:
+                content = r.read().decode("utf-8", errors="ignore")
+            soup = BeautifulSoup(content, "xml")
             items = soup.find_all("item")
-            ft_count = 0
-            
             for item in items:
-                if ft_count >= 5: 
+                if len(collector) >= cap:
                     break
-                title = item.title.text if item.title else ""
-                if title:
-                    shared_drivers.append(self.process_headline(title, "Shared Bridge (Financial Times)"))
-                    ft_count += 1
+                title = item.title.text.strip() if item.title else ""
+                pub_date = item.pubDate.text.strip() if item.pubDate else ""
+                if not title:
+                    continue
+                if not self._is_within_time_gate(pub_date):
+                    continue
+                if category == "economic" and not self._is_relevant(title):
+                    continue
+                collector.append(self.process_headline(title, source_label))
         except Exception:
             pass
 
-        # Robust Fallback System if news targets completely time out
+    def vacuum_macro_and_geo(self) -> dict:
+        economic_drivers = []
+        geopolitical_drivers = []
+
+        # --- ECONOMIC SOURCES (currency-keyword filtered) ---
+        economic_sources = [
+            ("https://www.investing.com/rss/news.rss", "Investing.com"),
+            ("https://www.fxstreet.com/rss/news", "FXStreet"),
+        ]
+
+        # --- GEOPOLITICAL SOURCES (no keyword filter — global scope) ---
+        geopolitical_sources = [
+            ("https://feeds.bbci.co.uk/news/world/rss.xml", "BBC World"),
+            ("https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "NYT World"),
+            ("https://www.theguardian.com/world/rss", "Guardian World"),
+        ]
+
+        for url, label in economic_sources:
+            self._fetch_rss(url, label, "economic", economic_drivers, cap=5)
+
+        for url, label in geopolitical_sources:
+            self._fetch_rss(url, label, "geopolitical", geopolitical_drivers, cap=5)
+
+        # Fallbacks if feeds return nothing
         if not economic_drivers:
-            economic_drivers.append({"headline": "No active macro alerts on desk feed.", "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50})
+            economic_drivers.append({
+                "headline": "No active macro alerts on desk feed.",
+                "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50
+            })
         if not geopolitical_drivers:
-            geopolitical_drivers.append({"headline": "Global baseline geopolitical risk remains stable.", "source_type": "Geopolitical", "bullish_pct": 50, "bearish_pct": 50})
-        if not shared_drivers:
-            shared_drivers.append({"headline": "Global macro policy landscape trading within normal ranges.", "source_type": "Shared Bridge", "bullish_pct": 50, "bearish_pct": 50})
+            geopolitical_drivers.append({
+                "headline": "Global baseline geopolitical risk remains stable.",
+                "source_type": "Geopolitical", "bullish_pct": 50, "bearish_pct": 50
+            })
 
         return {
             "economic_drivers": economic_drivers,
-            "geopolitical_drivers": geopolitical_drivers,
-            "shared_drivers": shared_drivers
+            "geopolitical_drivers": geopolitical_drivers
         }
 
     def vacuum_price_levels(self, current_spot: float) -> list:
-        """Generates clear floor and ceiling execution coordinates around the spot."""
         return [
             {"price": round(current_spot + 0.0015, 5), "timeframe": "M15", "label": "Minor Session Liquidity Pool"},
             {"price": round(current_spot + 0.0045, 5), "timeframe": "H4", "label": "Major Institutional Supply Valve"},
@@ -174,12 +176,10 @@ class DataVacuum:
         ]
 
     def run_ingestion_cycle(self) -> str:
-        """Compiles the multi-source streams directly into the clean data asset."""
         live_spot = self.vacuum_spot_price()
         flow_feed = self.vacuum_flow_data()
         macro_geo_feed = self.vacuum_macro_and_geo()
         price_levels = self.vacuum_price_levels(live_spot)
-
         manifest = {
             "timestamp": datetime.now(self.sgt_tz).strftime("%Y-%m-%d %H:%M:%S"),
             "pair": self.pair,
@@ -188,7 +188,6 @@ class DataVacuum:
             "macro_data": macro_geo_feed,
             "raw_price_levels": price_levels
         }
-
         with open(self.file_path, "w") as f:
             json.dump(manifest, f, indent=4)
         return "Success: Multi-Source Engine Intake Complete!"
