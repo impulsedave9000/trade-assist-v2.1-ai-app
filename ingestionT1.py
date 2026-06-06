@@ -93,14 +93,28 @@ class DataVacuum:
         text_lower = text.lower()
         return any(kw in text_lower for kw in self.active_keywords)
 
-    def process_headline(self, title: str, feed_type: str) -> dict:
+    def _strip_html(self, raw: str) -> str:
+        """Removes HTML tags from description text (Guardian carries raw HTML)."""
+        try:
+            return BeautifulSoup(raw, "html.parser").get_text(separator=" ").strip()
+        except Exception:
+            return raw.strip()
+
+    def process_headline(self, title: str, description: str, feed_type: str) -> dict:
         bullish, bearish = 50, 50
-        p_lower = title.lower()
-        if any(w in p_lower for w in ["hike", "hawkish", "gain", "rise", "strong", "higher", "surges"]):
+        # Score on combined title + description for wider signal coverage
+        combined = (title + " " + description).lower()
+        if any(w in combined for w in ["hike", "hawkish", "gain", "rise", "strong", "higher", "surges"]):
             bullish, bearish = 65, 35
-        elif any(w in p_lower for w in ["cut", "dovish", "fall", "drop", "weak", "lower", "slumps"]):
+        elif any(w in combined for w in ["cut", "dovish", "fall", "drop", "weak", "lower", "slumps"]):
             bullish, bearish = 35, 65
-        return {"headline": title, "source_type": feed_type, "bullish_pct": bullish, "bearish_pct": bearish}
+        return {
+            "headline": title,
+            "description": description,
+            "source_type": feed_type,
+            "bullish_pct": bullish,
+            "bearish_pct": bearish
+        }
 
     def _fetch_rss(self, url: str, source_label: str, category: str, collector: list, cap: int):
         """Fetches one RSS feed and appends relevant, time-gated headlines to collector."""
@@ -117,13 +131,17 @@ class DataVacuum:
                     break
                 title = item.title.text.strip() if item.title else ""
                 pub_date = item.pubDate.text.strip() if item.pubDate else ""
+                # Extract and clean description — strip HTML, fallback to empty string
+                raw_desc = item.description.text.strip() if item.description else ""
+                description = self._strip_html(raw_desc)
                 if not title:
                     continue
                 if not self._is_within_time_gate(pub_date):
                     continue
-                if category == "economic" and not self._is_relevant(title):
+                # Relevance check on title + description combined
+                if category == "economic" and not self._is_relevant(title + " " + description):
                     continue
-                collector.append(self.process_headline(title, source_label))
+                collector.append(self.process_headline(title, description, source_label))
         except Exception:
             pass
 
@@ -154,11 +172,13 @@ class DataVacuum:
         if not economic_drivers:
             economic_drivers.append({
                 "headline": "No active macro alerts on desk feed.",
+                "description": "",
                 "source_type": "Macro", "bullish_pct": 50, "bearish_pct": 50
             })
         if not geopolitical_drivers:
             geopolitical_drivers.append({
                 "headline": "Global baseline geopolitical risk remains stable.",
+                "description": "",
                 "source_type": "Geopolitical", "bullish_pct": 50, "bearish_pct": 50
             })
 
