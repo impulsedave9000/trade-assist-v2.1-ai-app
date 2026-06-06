@@ -15,7 +15,6 @@ class DataVacuum:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
 
-        # Currency keyword map — modular, expands with any pair
         self.currency_keywords = {
             "AUD": ["aud", "australia", "rba", "reserve bank of australia"],
             "USD": ["usd", "dollar", "fed", "federal reserve", "fomc"],
@@ -25,16 +24,12 @@ class DataVacuum:
             "JPY": ["jpy", "yen", "boj", "bank of japan"],
         }
 
-        # Extract the two currencies from the requested pair
         self.active_currencies = self._extract_currencies(self.pair)
-
-        # Build flat keyword list for this pair
         self.active_keywords = []
         for ccy in self.active_currencies:
             self.active_keywords.extend(self.currency_keywords.get(ccy, []))
 
     def _extract_currencies(self, pair: str) -> list:
-        """Splits a 6-character pair string into two 3-character currency codes."""
         if len(pair) == 6:
             return [pair[:3], pair[3:]]
         return []
@@ -78,23 +73,22 @@ class DataVacuum:
         }
 
     def _is_within_time_gate(self, pub_date_str: str) -> bool:
-        """Returns True if the article pubDate is within the -24h window."""
         try:
             pub_dt = parsedate_to_datetime(pub_date_str)
-            now_utc = datetime.now(timezone.utc)
-            age = now_utc - pub_dt
-            return age <= timedelta(hours=24)
+            return (datetime.now(timezone.utc) - pub_dt) <= timedelta(hours=24)
         except Exception:
-            # If date cannot be parsed, include the article (fail open)
+            pass
+        try:
+            pub_dt = datetime.strptime(pub_date_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - pub_dt) <= timedelta(hours=24)
+        except Exception:
             return True
 
     def _is_relevant(self, text: str) -> bool:
-        """Returns True if the headline contains a keyword for the active pair currencies."""
         text_lower = text.lower()
         return any(kw in text_lower for kw in self.active_keywords)
 
     def _strip_html(self, raw: str) -> str:
-        """Removes HTML tags from description text (Guardian carries raw HTML)."""
         try:
             return BeautifulSoup(raw, "html.parser").get_text(separator=" ").strip()
         except Exception:
@@ -102,7 +96,6 @@ class DataVacuum:
 
     def process_headline(self, title: str, description: str, feed_type: str) -> dict:
         bullish, bearish = 50, 50
-        # Score on combined title + description for wider signal coverage
         combined = (title + " " + description).lower()
         if any(w in combined for w in ["hike", "hawkish", "gain", "rise", "strong", "higher", "surges"]):
             bullish, bearish = 65, 35
@@ -117,7 +110,6 @@ class DataVacuum:
         }
 
     def _fetch_rss(self, url: str, source_label: str, category: str, collector: list, cap: int):
-        """Fetches one RSS feed and appends relevant, time-gated headlines to collector."""
         if len(collector) >= cap:
             return
         try:
@@ -126,36 +118,36 @@ class DataVacuum:
                 content = r.read().decode("utf-8", errors="ignore")
             soup = BeautifulSoup(content, "xml")
             items = soup.find_all("item")
+            checked, accepted = 0, 0
             for item in items:
                 if len(collector) >= cap:
                     break
                 title = item.title.text.strip() if item.title else ""
                 pub_date = item.pubDate.text.strip() if item.pubDate else ""
-                # Extract and clean description — strip HTML, fallback to empty string
                 raw_desc = item.description.text.strip() if item.description else ""
                 description = self._strip_html(raw_desc)
                 if not title:
                     continue
+                checked += 1
                 if not self._is_within_time_gate(pub_date):
                     continue
-                # Relevance check on title + description combined
                 if category == "economic" and not self._is_relevant(title + " " + description):
                     continue
+                accepted += 1
                 collector.append(self.process_headline(title, description, source_label))
-        except Exception:
-            pass
+            print(f"[DEBUG] {source_label}: {len(items)} items | {checked} checked | {accepted} accepted")
+        except Exception as e:
+            print(f"[DEBUG] {source_label}: FETCH ERROR {type(e).__name__}: {e}")
 
     def vacuum_macro_and_geo(self) -> dict:
         economic_drivers = []
         geopolitical_drivers = []
 
-        # --- ECONOMIC SOURCES (currency-keyword filtered) ---
         economic_sources = [
             ("https://www.investing.com/rss/news.rss", "Investing.com"),
             ("https://www.fxstreet.com/rss/news", "FXStreet"),
         ]
 
-        # --- GEOPOLITICAL SOURCES (no keyword filter — global scope) ---
         geopolitical_sources = [
             ("https://feeds.bbci.co.uk/news/world/rss.xml", "BBC World"),
             ("https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "NYT World"),
@@ -168,7 +160,6 @@ class DataVacuum:
         for url, label in geopolitical_sources:
             self._fetch_rss(url, label, "geopolitical", geopolitical_drivers, cap=5)
 
-        # Fallbacks if feeds return nothing
         if not economic_drivers:
             economic_drivers.append({
                 "headline": "No active macro alerts on desk feed.",
